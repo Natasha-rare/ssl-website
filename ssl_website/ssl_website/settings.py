@@ -43,12 +43,15 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'sorl.thumbnail',
+    'rest_framework',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -122,10 +125,13 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 
-STATIC_ROOT = os.path.join(BASE_DIR, "static")
-#
+# STATIC_ROOT = os.path.join(BASE_DIR, "static")
+# print(STATIC_ROOT)
+STATICFILES_DIRS = (
+    os.path.join(BASE_DIR, "static"),
+)
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 LOGIN_URL = "/auth/login/"
@@ -133,7 +139,9 @@ LOGIN_URL = "/auth/login/"
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
-EMAIL_FILE_PATH = os.path.join(BASE_DIR, "sent_emails")
+CORS_ORIGIN_ALLOW_ALL = True
+# CORS_URLS_REGEX =
+# EMAIL_FILE_PATH = os.path.join(BASE_DIR, "sent_emails")
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_USE_TLS = True
@@ -144,4 +152,4 @@ EMAIL_HOST_PASSWORD = os.getenv('PASSWORD_EMAIL')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_USER_MODEL = 'users.User'
-
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
