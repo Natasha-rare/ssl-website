@@ -8,7 +8,7 @@ class UserAdmin(admin.ModelAdmin):
     list_display = ('first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass')
     fieldsets = (
         ('Личная информация', {
-            'fields': (('first_name', 'last_name'), 'fathername', 'email', 'telegram', 'image', 'hse_pass','tg_bot_id')
+            'fields': (('first_name', 'last_name'), 'father_name', 'email', 'telegram', 'image', 'hse_pass','tg_bot_id', 'is_verified_email')
         }),
         ('Роль в клубе', {
             'fields': ('role', 'is_accepted')

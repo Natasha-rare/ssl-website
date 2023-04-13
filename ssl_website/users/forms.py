@@ -1,4 +1,6 @@
 import uuid
+from datetime import timedelta
+from django.utils.timezone import now
 
 from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.contrib.auth import get_user_model, password_validation
@@ -19,7 +21,7 @@ class RegistrationForm(UserCreationForm):
         widget=forms.TextInput(attrs={
         'class': 'form-control py-4', 'placeholder': 'Введите фамилию'}),
         validators=[RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$', message="Разрешены только буквы")])
-    fathername = forms.CharField(
+    father_name = forms.CharField(
         required=False,
         widget=forms.TextInput(attrs={
         'class': 'form-control py-4', 'placeholder': 'Введите отчество'}),
@@ -39,7 +41,7 @@ class RegistrationForm(UserCreationForm):
 
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'fathername', 'telegram', 'email', 'password1', 'password2', 'hse_pass')
+        fields = ('first_name', 'last_name', 'father_name', 'telegram', 'email', 'password1', 'password2', 'hse_pass')
 
     def save(self, commit=True):
         user = super(RegistrationForm, self).save(commit=False)
@@ -47,15 +49,13 @@ class RegistrationForm(UserCreationForm):
         print(user)
         if commit:
             user.save()
-        print(user.telegram)
-
-        # record = EmailVerification.objects.create(code=uuid.uuid4(), user=user)
+        # expiration = now() + timedelta(hours=48)
+        # record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
         # record.send_verification_email()
         return user
-
 
 
 class UserProfileForm(UserChangeForm):
     class Meta:
         model = User
-        fields = ("first_name", "last_name", "fathername", "email", "telegram", "image")
+        fields = ("first_name", "last_name", "father_name", "email", "telegram", "image")

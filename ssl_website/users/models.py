@@ -1,5 +1,4 @@
 from django.contrib.auth.base_user import BaseUserManager
-from django.utils import timezone
 from django.core.validators import MinLengthValidator
 from django.db import models
 from django.contrib.auth.models import AbstractUser
@@ -7,6 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.mail import send_mail
 from django.urls import reverse
 from django.conf import settings
+from django.utils.timezone import now
 
 class UserRole(models.TextChoices):
     """Модель для роли пользователя."""
@@ -16,43 +16,14 @@ class UserRole(models.TextChoices):
     ARBITRATOR = "arbitrator"  # просто зарегистрированный пользователь
     ADMIN = "admin"  # просто зарегистрированный пользователь
 
-class UserManager(BaseUserManager):
-    use_in_migrations = True
-
-    def _create_user(self, email, password, **extra_fields):
-        if not email:
-            raise ValueError('Users require an email field')
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_user(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', False)
-        extra_fields.setdefault('is_superuser', False)
-        return self._create_user(email, password, **extra_fields)
-
-    def create_superuser(self, email, password, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-
-        return self._create_user(email, password, **extra_fields)
-
 
 class User(AbstractUser):
     """Модель для пользователя"""
-    username = None  # сбрасываем username
     last_name = models.CharField(_("last name"),  max_length=150, blank=False)
     first_name = models.CharField(_("first name"), max_length=150, blank=False)
-    fathername = models.CharField("Отчество", max_length=150, blank=True)
+    father_name = models.CharField("Отчество", max_length=150, blank=True)
     image = models.ImageField(upload_to='users_images', null=True, blank=True)
-    email = models.EmailField(_("email address"), unique=True)
+    email = models.EmailField(_("email address"), unique=True, blank=False)
     telegram = models.CharField("Ник в Телеграме", max_length=100, validators=[MinLengthValidator(5)], blank=False)
     role = models.CharField(
         max_length=30,
@@ -63,15 +34,44 @@ class User(AbstractUser):
     tg_bot_id = models.CharField(_("id for telegram bot"), blank=True, max_length=40, null=True, default=None)
     hse_pass = models.BooleanField("Есть пропуск в Вышку", default=False, blank=False)
     is_accepted = models.BooleanField("Заявка принята", default=False, blank=False)
-    objects = UserManager()
+    is_verified_email = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []
-
+    REQUIRED_FIELDS = ['username']
 
     def clean(self):
         self.first_name = self.first_name.capitalize()
         self.last_name = self.last_name.capitalize()
-        self.fathername = self.fathername.capitalize()
+        self.father_name = self.father_name.capitalize()
         self.email = self.email.lower()
 
+#
+# class EmailVerification(models.Model):
+#     code = models.UUIDField(unique=True)
+#     user = models.ForeignKey(to=User, on_delete=models.CASCADE)
+#     created = models.DateTimeField(auto_now_add=True)
+#     expiration = models.DateTimeField()
+#
+#     def __str__(self):
+#         return f'EmailVerification object for {self.user.email}'
+#
+#     def send_verification_email(self):
+#         link = reverse('users:email_verification', kwargs={'email': self.user.email})
+#         verification_link = f'{settings.DOMAIN_NAME}{link}'
+#         subject = f'Подверждение учетной записи для пользователя {self.user.first_name} {self.user.last_name}'
+#         message = 'Ваш код подтверждения: {}.\n' \
+#                   ' Для подверждения учетной записи для {} перейдите по ссылке: {} '.format(
+#             self.code,
+#             self.user.email,
+#             verification_link
+#         )
+#         send_mail(
+#             subject=subject,
+#             message=message,
+#             from_email=settings.EMAIL_HOST_USER,
+#             recipient_list=[self.user.email],
+#             fail_silently=False,
+#         )
+#
+#     def is_expired(self):
+#         return True if now() >= self.expiration else False
