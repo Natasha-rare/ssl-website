@@ -61,9 +61,17 @@ class User(AbstractUser):
         verbose_name="Роль",
     )
     tg_bot_id = models.CharField(_("id for telegram bot"), blank=True, max_length=40, null=True, default=None)
+    hse_pass = models.BooleanField("Есть пропуск в Вышку", default=False, blank=False)
     is_accepted = models.BooleanField("Заявка принята", default=False, blank=False)
     objects = UserManager()
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
+
+
+    def clean(self):
+        self.first_name = self.first_name.capitalize()
+        self.last_name = self.last_name.capitalize()
+        self.fathername = self.fathername.capitalize()
+        self.email = self.email.lower()
 

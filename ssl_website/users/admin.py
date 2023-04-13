@@ -5,16 +5,16 @@ from .models import User
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted')
+    list_display = ('first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass')
     fieldsets = (
         ('Личная информация', {
-            'fields': (('first_name', 'last_name'), 'fathername', 'email', 'telegram', 'image', 'tg_bot_id')
+            'fields': (('first_name', 'last_name'), 'fathername', 'email', 'telegram', 'image', 'hse_pass','tg_bot_id')
         }),
         ('Роль в клубе', {
             'fields': ('role', 'is_accepted')
         })
     )
-    search_fields = ['role', 'telegram', 'email']
-    list_filter = ['role', 'telegram', 'email']
-    list_display_links = ('first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted')
+    search_fields = ['role', 'telegram', 'email', 'hse_pass', 'is_accepted']
+    list_filter = ['role', 'hse_pass', 'is_accepted', 'telegram', 'email']
+    list_display_links = ('first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass')
     list_per_page = 25
