@@ -2,13 +2,11 @@
     <a class="navbar-brand" href="/"><span style="color:blue">SSL</span></a>
     <nav class="my-2 my-md-0 mr-md-3">
         {% if user.is_authenticated %}
-        Пользователь: {{ user.email }}.
-        <a class="p-2 text-dark" href="{% url 'password_change' %}">Изменить пароль</a>
-        <a class="p-2 text-dark" href="{% url 'users:profile_settings' %}">Настройки профиля</a>
-        <a class="p-2 text-dark" href="{% url 'logout' %}">Выйти</a>
+        Пользователь: {{ user.email }}. |
+        <a class="p-2 text-dark" href="{% url 'users:logout' %}">Выйти</a>
         {% else %}
-        <a class="p-2 text-dark" href="{% url 'login' %}">Войти</a> |
-        <a class="p-2 text-dark" href="{% url 'users:signup' %}">Регистрация</a>
+        <a class="p-2 text-dark" href="{% url 'users:login' %}">Войти</a> |
+        <a class="p-2 text-dark" href="{% url 'users:registration' %}">Регистрация</a>
         {% endif %}
     </nav>
 </nav>

@@ -1,4 +1,5 @@
-from django.contrib.auth import get_user_model, password_validation
+from django.contrib import auth
+from django.contrib.auth import get_user_model, password_validation, authenticate
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
 from django.core.mail import send_mail
@@ -7,18 +8,20 @@ from rest_framework import viewsets, status, generics, views
 from django_filters import rest_framework
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import AccessToken
-import json
+from django.http import HttpResponseRedirect
+from django.urls import reverse
 from json import JSONEncoder
 from .models import EmailVerification
-from .serializers import UserSerializer, EmailVerificationSerializer
+from .serializers import UserRegistrationSerializer, EmailVerificationSerializer, sendVerification
 
 User = get_user_model()
 
-class UserViewSet(viewsets.ModelViewSet):
+class UserRegisterView(generics.GenericAPIView):
     queryset = User.objects.all()
-    serializer_class = UserSerializer
+    serializer_class = UserRegistrationSerializer
 
     def create(self, request, *args, **kwargs):
         user = request.data
@@ -94,60 +97,85 @@ class UserEncoder(JSONEncoder):
     def default(self, o):
         return o.__dict__
 
+
+
 class EmailVerificationView(generics.GenericAPIView):
     serializer_class = EmailVerificationSerializer
 
-    def post(self, request, *args, **kwargs):
+    def send_verification(self, request):
+        email = request.data.get("email")
+        user = User.objects.filter(email=email)
+        print(user)
+        if user.exists():
+            if user[0].is_accepted:
+                try:
+                    sendVerification(email)
+                    return  Response({"Success": "Код подтверждения был выслан на вашу почту"}, status=status.HTTP_200_OK)
+                except Exception as error:
+                    return Response({"Error": error})
+            else:
+                return Response({ "Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
+                                status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({"Invalid": "Неверная почта"}, status=status.HTTP_404_NOT_FOUND)
+
+    def post(self, request, **kwargs):
+        if 'email' not in kwargs:
+            return self.send_verification(request)
         print(kwargs['email'])
-        code = request.GET['code']
+        code = request.data['code']
         user = get_object_or_404(User, email=kwargs['email'])
         print(user)
         email_verifications = EmailVerification.objects.filter(user=user)
-        serializer = UserSerializer(user)
+        serializer = UserRegistrationSerializer(user)
+        if not user.is_accepted:
+            return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
+                                status=status.HTTP_403_FORBIDDEN)
         if email_verifications.exists() and not email_verifications.first().is_expired():
             user.is_verified_email = True
             print(user.is_verified_email)
             user.save()
-            return Response({"message": "Почта была успешно подтверждена. Ждите ответа в ближайшие 3 дня"}, status=status.HTTP_200_OK)
+            # HttpResponseRedirect
+            return Response({"Success": "Почта была успешно подтверждена. Ждите ответа в ближайшие 3 дня"}, status=status.HTTP_200_OK)
+        elif email_verifications.first().is_expired():
+            return Response({"Error": "Действие кода подтверждения истекло. Для получения нового кода перейдите по ссылке ..."}, status=status.HTTP_403_FORBIDDEN)
         else:
             return Response(serializer.data, status=status.HTTP_406_NOT_ACCEPTABLE)
 
-# def emailVerification(request, email):
-#     # template_name = 'registration/email_verification.html'
-#     #
-#     # def get(self, request, *args, **kwargs):
-#     #     user = User.objects.get(email=kwargs['email'])
-#     #     email_verifications = EmailVerification.objects.filter(user=user)
-#     #     if email_verifications.exists() and not email_verifications.first().is_expired():
-#     #         user.is_verified_email = True
-#     #         user.save()
-#     #         return super(EmailVerificationView, self).get(request, *args, **kwargs)
-#     #     else:
-#     #         return HttpResponseRedirect(reverse('index'))
-#     if request.method == 'POST':
-#         form = EmailForm(data=request.POST)
-#         if form.is_valid():
-#             user = User.objects.get(email=email)
-#             email_verifications = EmailVerification.objects.filter(user=user)
-#             code = form.cleaned_data['code']
-#             if email_verifications.exists() and not email_verifications.first().is_expired() \
-#                     and code == email_verifications.first().code:
-#                 user.is_verified_email = True
-#                 user.save()
-#             print(user)
-#             return HttpResponseRedirect(reverse('users:profile_settings'))
-#         else:
-#             print(form.errors)
-#     else:
-#         form = EmailForm()
-#     context = {
-#         'form': form,
-#     }
-#     return render(request, "registration/email_verification.html", context)
-class LoginView(views.APIView):
-    def post(self, request):
-        data = request
 
-# def logout(request):
-#     auth.logout(request)
-#     return HttpResponseRedirect(reverse('index'))
+
+class LoginView(views.APIView):
+
+    def post(self, request):
+        data = request.data
+        email = data.get('email', None)
+        password = data.get('password', None)
+        user = authenticate(email=email, password=password)
+        print('jsjdjdjsjd', reverse('users:registration'))
+        if user is not None:
+            if user.is_verified_email and user.is_accepted:
+                url = reverse('landing:index')
+                return HttpResponseRedirect(url)
+                # return Response({"Success": "Вход успешен", "data": data['email']}, status=status.HTTP_200_OK)  # redirect to index/profile
+            elif user.is_accepted:
+                return Response({"No active": "Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ..."}, status=status.HTTP_403_FORBIDDEN)
+            elif user.is_verified_email:
+                return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
+                                status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response({"No active": "Ваша почта не подтверждена и аккаунт не подтвержден"},
+                                status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({"Invalid": "Неверная почта или пароль"}, status=status.HTTP_404_NOT_FOUND)
+
+
+class ProfileView(viewsets.ModelViewSet):
+    pass
+
+@api_view(['POST', 'GET'])
+@permission_classes([IsAuthenticated,])
+def logout(request):
+    print(request)
+    auth.logout(request)
+    # url = reverse('landing:index')
+    return Response({"Success": "Logout Successfully"}, status=status.HTTP_200_OK)

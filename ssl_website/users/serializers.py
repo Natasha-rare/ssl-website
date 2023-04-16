@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
@@ -6,9 +7,15 @@ from datetime import timedelta
 from django.utils.timezone import now
 from .models import EmailVerification
 User = get_user_model()
+from rest_framework.exceptions import AuthenticationFailed
+
+class UserSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = "__all__"
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserRegistrationSerializer(serializers.ModelSerializer):
     password1 = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
 
@@ -39,10 +46,19 @@ class UserSerializer(serializers.ModelSerializer):
         )
         user.set_password(validated_data['password1'])
         user.save()
+        sendVerification(validated_data['email'])
+        return user
+
+
+def sendVerification(email):
+    user = User.objects.filter(email=email)
+    if user.exists():
+        user = user[0]
         expiration = now() + timedelta(hours=48)
         record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
         record.send_verification_email()
-        return user
+    else:
+        raise AuthenticationFailed('Пользователя с такой почтой не существует')
 
 
 class EmailVerificationSerializer(serializers.ModelSerializer):

@@ -27,9 +27,9 @@ from rest_framework.authtoken import views
 # ]
 urlpatterns = [
     path(r'', include('users.urls')),
+    path(r"", include("landing.urls")),
     path(r'admin/', admin.site.urls),
     # path(r'api/v1/api-token-auth/', views.obtain_auth_token),
-    path(r"", include("landing.urls")),
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
