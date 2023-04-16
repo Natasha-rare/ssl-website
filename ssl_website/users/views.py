@@ -2,6 +2,7 @@ from django.contrib import auth
 from django.contrib.auth import get_user_model, password_validation, authenticate
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
+from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status, generics, views
@@ -15,21 +16,75 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from json import JSONEncoder
 from .models import EmailVerification
-from .serializers import UserRegistrationSerializer, EmailVerificationSerializer, sendVerification
+from .serializers import UserRegistrationSerializer, EmailVerificationSerializer, sendVerification, UserLoginSerializer, PasswordChangeSerializer, EmptySerializer
 
 User = get_user_model()
 
-class UserRegisterView(generics.GenericAPIView):
+class UserAuthViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
-    serializer_class = UserRegistrationSerializer
+    serializer_class = EmptySerializer
+    serializer_classes = {
+        # 'login': UserLoginSerializer,
+        'register': UserRegistrationSerializer,
+        # 'password_change': PasswordChangeSerializer
+    }
 
-    def create(self, request, *args, **kwargs):
+    @action(methods=['POST', ], detail=False)
+    def register(self, request, *args, **kwargs):
+        print('register here')
         user = request.data
-        serializer = self.serializer_class(data=user)
+        serializer = self.get_serializer(data=user)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         user_data = serializer.data
         return Response(user_data, status=status.HTTP_201_CREATED)
+
+    @action(methods=['POST', ], detail=False)
+    @permission_classes([IsAuthenticated, ])
+    def logout(self, request):
+        print(request)
+        auth.logout(request)
+        return Response({"Success": "Logout Successfully"}, status=status.HTTP_200_OK)
+
+    @action(methods=['POST', ], detail=False)
+    def login(self, request):
+        data = request.data
+        email = data.get('email', None)
+        password = data.get('password', None)
+        user = authenticate(email=email, password=password)
+        # print('jsjdjdjsjd', reverse('users:registration'))
+        if user is not None:
+            if user.is_verified_email and user.is_accepted:
+                return Response({"Success": "Вход успешен", "data": data['email']}, status=status.HTTP_200_OK)  # redirect to index/profile
+            elif user.is_accepted:
+                return Response({"No active": "Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ..."},
+                                status=status.HTTP_403_FORBIDDEN)
+            elif user.is_verified_email:
+                return Response({
+                                    "Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
+                                status=status.HTTP_403_FORBIDDEN)
+            else:
+                return Response({"No active": "Ваша почта не подтверждена и аккаунт не подтвержден"},
+                                status=status.HTTP_403_FORBIDDEN)
+        else:
+            return Response({"Invalid": "Неверная почта или пароль"}, status=status.HTTP_404_NOT_FOUND)
+
+    def password_change(self, request):
+        email = request.data.get('email', None)
+        user = User.objects.filter(email=email)
+        if user.exists():
+            sendVerification(email)
+        else:
+            return Response({"Invalid": "Пользователя с такой почтой не существует"}, status=status.HTTP_404_NOT_FOUND)
+
+
+    def get_serializer_class(self):
+        if not isinstance(self.serializer_classes, dict):
+            raise ImproperlyConfigured("serializer_classes should be a dict mapping.")
+
+        if self.action in self.serializer_classes.keys():
+            return self.serializer_classes[self.action]
+        return super().get_serializer_class()
 
 # @api_view(["POST"])
 # @permission_classes([permissions.AllowAny])
@@ -110,11 +165,11 @@ class EmailVerificationView(generics.GenericAPIView):
             if user[0].is_accepted:
                 try:
                     sendVerification(email)
-                    return  Response({"Success": "Код подтверждения был выслан на вашу почту"}, status=status.HTTP_200_OK)
+                    return Response({"Success": "Код подтверждения был выслан на вашу почту"}, status=status.HTTP_200_OK)
                 except Exception as error:
                     return Response({"Error": error})
             else:
-                return Response({ "Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
+                return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
                                 status=status.HTTP_403_FORBIDDEN)
         else:
             return Response({"Invalid": "Неверная почта"}, status=status.HTTP_404_NOT_FOUND)
@@ -128,54 +183,22 @@ class EmailVerificationView(generics.GenericAPIView):
         print(user)
         email_verifications = EmailVerification.objects.filter(user=user)
         serializer = UserRegistrationSerializer(user)
-        if not user.is_accepted:
-            return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
-                                status=status.HTTP_403_FORBIDDEN)
         if email_verifications.exists() and not email_verifications.first().is_expired():
             user.is_verified_email = True
             print(user.is_verified_email)
             user.save()
             # HttpResponseRedirect
-            return Response({"Success": "Почта была успешно подтверждена. Ждите ответа в ближайшие 3 дня"}, status=status.HTTP_200_OK)
+            return Response({"Success": f"Ваша заявка на участие в клубе успешно принята. Ожидайте ответ в течении трёх дней. Результат рассмотрения заявки придет на {kwargs['email']}."}, status=status.HTTP_200_OK)
         elif email_verifications.first().is_expired():
             return Response({"Error": "Действие кода подтверждения истекло. Для получения нового кода перейдите по ссылке ..."}, status=status.HTTP_403_FORBIDDEN)
-        else:
-            return Response(serializer.data, status=status.HTTP_406_NOT_ACCEPTABLE)
-
-
-
-class LoginView(views.APIView):
-
-    def post(self, request):
-        data = request.data
-        email = data.get('email', None)
-        password = data.get('password', None)
-        user = authenticate(email=email, password=password)
-        print('jsjdjdjsjd', reverse('users:registration'))
-        if user is not None:
-            if user.is_verified_email and user.is_accepted:
-                url = reverse('landing:index')
-                return HttpResponseRedirect(url)
-                # return Response({"Success": "Вход успешен", "data": data['email']}, status=status.HTTP_200_OK)  # redirect to index/profile
-            elif user.is_accepted:
-                return Response({"No active": "Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ..."}, status=status.HTTP_403_FORBIDDEN)
-            elif user.is_verified_email:
-                return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
+        if not user.is_accepted:
+            return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
                                 status=status.HTTP_403_FORBIDDEN)
-            else:
-                return Response({"No active": "Ваша почта не подтверждена и аккаунт не подтвержден"},
-                                status=status.HTTP_403_FORBIDDEN)
-        else:
-            return Response({"Invalid": "Неверная почта или пароль"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(serializer.data, status=status.HTTP_406_NOT_ACCEPTABLE)
+
 
 
 class ProfileView(viewsets.ModelViewSet):
     pass
 
-@api_view(['POST', 'GET'])
-@permission_classes([IsAuthenticated,])
-def logout(request):
-    print(request)
-    auth.logout(request)
-    # url = reverse('landing:index')
-    return Response({"Success": "Logout Successfully"}, status=status.HTTP_200_OK)
+

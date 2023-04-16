@@ -14,21 +14,44 @@ class UserSerialiser(serializers.ModelSerializer):
         model = User
         fields = "__all__"
 
+class UserLoginSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('email', 'password', )
+
+
+class PasswordChangeSerializer(serializers.ModelSerializer):
+    pass
+
+
+class EmptySerializer(serializers.Serializer):
+    pass
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
+    image = serializers.ImageField(use_url="media", required=False)
+    accept_conditions = serializers.BooleanField(required=True)
     password1 = serializers.CharField(write_only=True, required=True, validators=[validate_password])
     password2 = serializers.CharField(write_only=True, required=True)
 
     class Meta:
         model = User
-        fields = ['first_name', 'last_name', 'father_name', 'telegram', 'email', 'password1', 'password2', 'hse_pass']
+        fields = ('first_name', 'last_name', 'father_name', 'telegram',
+                  'email', 'password1', 'password2', 'image', 'hse_pass', 'accept_conditions',)
         extra_kwargs = {
             'father_name': {'required': False}
         }
 
     def validate(self, attrs):
+        user = User.objects.filter(telegram=f"https://t.me/{attrs['telegram']}")
+        if user:
+            raise serializers.ValidationError({"telegram": "Пользователь с таким телеграмом уже существует."})
         if attrs['password1'] != attrs['password2']:
-            raise serializers.ValidationError({"password": "Password fields didn't match."})
+            raise serializers.ValidationError({"password": "Пароли не совпадают"})
+        if attrs['image'].size > 10.0*1024*1024:
+            raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
+        if not attrs['accept_conditions']:
+            raise serializers.ValidationError({"conditions": "Для продолжения регистрации, "
+                                                             "вы должны принять условия пользовательского соглашения"})
         attrs['first_name'] = attrs['first_name'].capitalize()
         attrs['last_name'] = attrs['last_name'].capitalize()
         attrs['father_name'] = attrs['father_name'].capitalize()
@@ -42,7 +65,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             father_name=validated_data['father_name'],
             email=validated_data['email'],
             telegram=f"https://t.me/{validated_data['telegram']}",
-            hse_pass=validated_data['hse_pass']
+            hse_pass=validated_data['hse_pass'],
+            image=validated_data['image']
         )
         user.set_password(validated_data['password1'])
         user.save()
