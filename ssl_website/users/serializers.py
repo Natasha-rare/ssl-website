@@ -20,10 +20,6 @@ class UserLoginSerializer(serializers.ModelSerializer):
         fields = ('email', 'password', )
 
 
-class PasswordChangeSerializer(serializers.ModelSerializer):
-    pass
-
-
 class EmptySerializer(serializers.Serializer):
     pass
 
@@ -89,3 +85,33 @@ class EmailVerificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = EmailVerification
         fields = ['code']
+
+
+class SetNewPasswordSerializer(serializers.Serializer):
+    password = serializers.CharField(required=True, validators=[validate_password])
+    email = serializers.EmailField(required=True)
+
+    def validate(self, attrs):
+        try:
+            password = attrs.get('password')
+            email = attrs.get('email')
+            user = User.objects.get(email=email)
+            if user is not None:
+                user.set_password(password)
+                user.save()
+                return user
+            else:
+                raise AuthenticationFailed('Пользователь с такой почтой не найден', 404)
+        except Exception as e:
+            print(e)
+            raise AuthenticationFailed('Ссылка для сброса пароля не валидна', 401)
+        return attr
+
+
+class ResetPasswordEmailRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField(min_length=2)
+
+    redirect_url = serializers.CharField(max_length=500, required=False)
+
+    class Meta:
+        fields = ['email']

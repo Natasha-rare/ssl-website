@@ -1,7 +1,10 @@
+import uuid
+
 from django.contrib import auth
 from django.contrib.auth import get_user_model, password_validation, authenticate
 from django.conf import settings
 from django.contrib.auth.tokens import default_token_generator
+from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
@@ -16,7 +19,9 @@ from django.http import HttpResponseRedirect
 from django.urls import reverse
 from json import JSONEncoder
 from .models import EmailVerification
-from .serializers import UserRegistrationSerializer, EmailVerificationSerializer, sendVerification, UserLoginSerializer, PasswordChangeSerializer, EmptySerializer
+from .serializers import UserRegistrationSerializer,\
+    SetNewPasswordSerializer, EmailVerificationSerializer, sendVerification, UserLoginSerializer, ResetPasswordEmailRequestSerializer, EmptySerializer
+from django.core.mail import send_mail
 
 User = get_user_model()
 
@@ -26,7 +31,7 @@ class UserAuthViewSet(viewsets.GenericViewSet):
     serializer_classes = {
         # 'login': UserLoginSerializer,
         'register': UserRegistrationSerializer,
-        # 'password_change': PasswordChangeSerializer
+        # 'password_change': ResetPasswordEmailRequestSerializer
     }
 
     @action(methods=['POST', ], detail=False)
@@ -69,14 +74,31 @@ class UserAuthViewSet(viewsets.GenericViewSet):
         else:
             return Response({"Invalid": "Неверная почта или пароль"}, status=status.HTTP_404_NOT_FOUND)
 
+    @action(methods=['POST', ], detail=False)
     def password_change(self, request):
-        email = request.data.get('email', None)
+        print(request.data["email"])
+        email = request.data["email"]
         user = User.objects.filter(email=email)
-        if user.exists():
-            sendVerification(email)
+        if user is not None:
+            user = user.first()
+            code = uuid.uuid4()
+            link = reverse('users:password-reset-complete', kwargs={'email': user.email, 'code': code})
+            verification_link = f'{settings.DOMAIN_NAME}{link}'
+            subject = f'Сброс пароля для пользователя {user.first_name} {user.last_name}'
+            message = 'Для подверждения сброса пароля для {} перейдите по ссылке: {} '.format(
+                user.email,
+                verification_link
+            )
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[user.email],
+                fail_silently=False,
+            )
+            return Response({"message": "Письмо для сброса пароля было выслано на указанную почту"}, status=status.HTTP_200_OK)
         else:
-            return Response({"Invalid": "Пользователя с такой почтой не существует"}, status=status.HTTP_404_NOT_FOUND)
-
+            return Response({"Invalid": "Неверная почта"}, status=status.HTTP_404_NOT_FOUND)
 
     def get_serializer_class(self):
         if not isinstance(self.serializer_classes, dict):
@@ -152,6 +174,18 @@ class UserEncoder(JSONEncoder):
     def default(self, o):
         return o.__dict__
 
+
+class SetNewPasswordAPIView(generics.GenericAPIView):
+    serializer_class = SetNewPasswordSerializer
+
+    def patch(self, request, **kwargs):
+        print(request.data)
+        password = request.data.get("password")
+        email = kwargs["email"]
+        serializer = self.serializer_class(data={"password": password, "email":email})
+        print(serializer)
+        serializer.is_valid(raise_exception=True)
+        return Response({'success': True, 'message': 'Password reset success'}, status=status.HTTP_200_OK)
 
 
 class EmailVerificationView(generics.GenericAPIView):

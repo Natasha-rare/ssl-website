@@ -71,7 +71,7 @@ class EmailVerification(models.Model):
         verification_link = f'{settings.DOMAIN_NAME}{link}'
         subject = f'Подверждение учетной записи для пользователя {self.user.first_name} {self.user.last_name}'
         message = 'Ваш код подтверждения: {}.\n' \
-                  ' Для подверждения учетной записи для {} перейдите по ссылке: {} '.format(
+                  'Для подверждения учетной записи для {} перейдите по ссылке: {} '.format(
             self.code,
             self.user.email,
             verification_link
