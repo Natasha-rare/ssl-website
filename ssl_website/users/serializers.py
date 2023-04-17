@@ -1,3 +1,4 @@
+from django.core.validators import RegexValidator
 from django.shortcuts import get_object_or_404
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
@@ -8,11 +9,45 @@ from django.utils.timezone import now
 from .models import EmailVerification
 User = get_user_model()
 from rest_framework.exceptions import AuthenticationFailed
+from django.utils.translation import gettext_lazy as _
 
 class UserSerialiser(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = "__all__"
+        fields = ('first_name', 'last_name', 'father_name', 'telegram',
+                  'email', 'image', 'hse_pass')  # add password – ?
+
+        extra_kwargs = {
+            'father_name': {'required': False, 'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$',
+                                                                             message=_("Отчество неккоректно. Допустимые символы для ввода: пробел, латинские и киррилические буквы"))]},
+            'first_name': {'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$', message=_("Имя неккоректно. Допустимые символы для ввода: пробел, латинские и киррилические буквы"))]},
+            'last_name': {'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$', message=_("Фамилия неккоректна. Допустимые символы для ввода: пробел, латинские и киррилические буквы"))]},
+        }
+
+    def validate(self, attrs):
+        if 'telegram' in attrs:
+            user = User.objects.filter(telegram=f"https://t.me/{attrs['telegram']}")
+            if user:
+                user = user.first()
+                if self.context['request'].user != user:
+                    raise serializers.ValidationError({"telegram": "Пользователь с таким телеграмом уже существует."})
+            attrs['telegram'] = f"https://t.me/{attrs['telegram']}"
+        if 'first_name' in attrs:
+            attrs['first_name'] = attrs['first_name'].capitalize()
+        if 'last_name' in attrs:
+            attrs['last_name'] = attrs['last_name'].capitalize()
+        if 'father_name' in attrs:
+            attrs['father_name'] = attrs['father_name'].capitalize()
+        return attrs
+
+
+class UserAllSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'father_name', 'telegram',
+                  'email', 'hse_pass', 'is_accepted', 'is_verified_email', 'role')
+        read_only_fields = ('first_name', 'last_name', 'father_name', 'telegram',
+                  'email')
 
 class UserLoginSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,7 +69,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ('first_name', 'last_name', 'father_name', 'telegram',
                   'email', 'password1', 'password2', 'image', 'hse_pass', 'accept_conditions',)
         extra_kwargs = {
-            'father_name': {'required': False}
+            'father_name': {'required': False, 'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$',
+                                                                        message=_("Отчество неккоректно."
+                                                                "Допустимые символы для ввода: пробел, латинские и киррилические буквы"))]},
+            'first_name': {'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$',
+                                                         message=_("Имя неккоректно. Допустимые символы для ввода: пробел, латинские и киррилические буквы"))]},
+            'last_name': {'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$',
+                                                        message=_("Фамилия неккоректна. Допустимые символы для ввода: пробел, латинские и киррилические буквы"))]},
         }
 
     def validate(self, attrs):
@@ -46,8 +87,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         if attrs['image'].size > 10.0*1024*1024:
             raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
         if not attrs['accept_conditions']:
-            raise serializers.ValidationError({"conditions": "Для продолжения регистрации, "
-                                                             "вы должны принять условия пользовательского соглашения"})
+            raise serializers.ValidationError({"conditions": "Для продолжения регистрации, "                                              "вы должны принять условия пользовательского соглашения"})
         attrs['first_name'] = attrs['first_name'].capitalize()
         attrs['last_name'] = attrs['last_name'].capitalize()
         attrs['father_name'] = attrs['father_name'].capitalize()

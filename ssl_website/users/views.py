@@ -1,5 +1,4 @@
 import uuid
-
 from django.contrib import auth
 from django.contrib.auth import get_user_model, password_validation, authenticate
 from django.conf import settings
@@ -9,30 +8,25 @@ from django.core.exceptions import ImproperlyConfigured
 from django.core.mail import send_mail
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status, generics, views
-from django_filters import rest_framework
+from .permissions import ReadOnlyPermission, ArbitratorPermission, AdminPermission, StudentPermission
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework_simplejwt.tokens import AccessToken
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from json import JSONEncoder
 from .models import EmailVerification
 from .serializers import UserRegistrationSerializer,\
-    SetNewPasswordSerializer, EmailVerificationSerializer, sendVerification, UserLoginSerializer, ResetPasswordEmailRequestSerializer, EmptySerializer
+    SetNewPasswordSerializer, EmailVerificationSerializer, sendVerification, \
+    UserSerialiser, EmptySerializer, UserAllSerializer
 from django.core.mail import send_mail
 
 User = get_user_model()
 
 class UserAuthViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
-    serializer_class = EmptySerializer
-    serializer_classes = {
-        # 'login': UserLoginSerializer,
-        'register': UserRegistrationSerializer,
-        # 'password_change': ResetPasswordEmailRequestSerializer
-    }
+    serializer_class = UserRegistrationSerializer
 
     @action(methods=['POST', ], detail=False)
     def register(self, request, *args, **kwargs):
@@ -100,13 +94,6 @@ class UserAuthViewSet(viewsets.GenericViewSet):
         else:
             return Response({"Invalid": "Неверная почта"}, status=status.HTTP_404_NOT_FOUND)
 
-    def get_serializer_class(self):
-        if not isinstance(self.serializer_classes, dict):
-            raise ImproperlyConfigured("serializer_classes should be a dict mapping.")
-
-        if self.action in self.serializer_classes.keys():
-            return self.serializer_classes[self.action]
-        return super().get_serializer_class()
 
 # @api_view(["POST"])
 # @permission_classes([permissions.AllowAny])
@@ -231,8 +218,51 @@ class EmailVerificationView(generics.GenericAPIView):
         return Response(serializer.data, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 
+class PasswordChangeView(generics.GenericAPIView):
+    queryset = User.objects.all()
+    # serializer_class = PasswordChangeSerializer
 
 class ProfileView(viewsets.ModelViewSet):
-    pass
+    queryset = User.objects.all()
+    serializer_class = EmptySerializer
+    serializer_classes = {
+        'profile': UserSerialiser,
+        'users_all': UserAllSerializer
+    }
+    # permission_classes = [StudentPermission, AdminPermission, ArbitratorPermission]
 
+    @action(methods=['GET', 'PATCH', ], detail=False)
+    @permission_classes([StudentPermission, AdminPermission, ArbitratorPermission,])
+    def profile(self, request):
+        user = get_object_or_404(User, email=request.user.email)
+        if request.method == "GET":
+            serializer = self.get_serializer(user, many=False)
+            return Response(serializer.data)
+        if request.method == "PATCH":
+            serializer = self.get_serializer(user, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
 
+    @action(methods=['GET', ], detail=False, permission_classes=[AdminPermission, ])
+    def users_all(self, request):
+        if request.method == "GET":
+            users = User.objects.all()
+            try:
+                serializer = self.get_serializer(users, many=True)
+                print(serializer)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            except:
+                serializer.is_valid()
+                return Response(serializer.errors,
+                            status=status.HTTP_400_BAD_REQUEST)
+
+    def get_serializer_class(self):
+        if not isinstance(self.serializer_classes, dict):
+            raise ImproperlyConfigured("serializer_classes should be a dict mapping.")
+
+        if self.action in self.serializer_classes.keys():
+            return self.serializer_classes[self.action]
+        return super().get_serializer_class()
