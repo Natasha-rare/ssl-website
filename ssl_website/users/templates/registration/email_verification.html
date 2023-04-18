@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Подтверждение почты{% endblock %}
 {% block content %}
-    <form method="post" action="{% url 'users:email_verification' %}">
+    <form method="post" action="{% url 'users:email-verification' %}">
         {% csrf_token %}
 
         {% for field in form %}

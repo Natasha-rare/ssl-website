@@ -32,7 +32,6 @@ class StudentPermission(BasePermission):
     """Класс для разрешения доступа только студенту."""
     def has_permission(self, request, view):
         if request.user.is_authenticated:
-            # print(request.user.role == UserRole.STUDENT)
             return request.user.role == UserRole.STUDENT
 
 

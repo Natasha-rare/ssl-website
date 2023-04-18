@@ -2,7 +2,7 @@ from django.urls import path, include
 
 # from users.views import login, registration, profile, logout
 # from .views import SignUp, profile_settings, logout
-from .views import UserAuthViewSet, EmailVerificationView, SetNewPasswordAPIView, ProfileView
+from .views import UserAuthViewSet, EmailVerificationView, SetNewPasswordAPIView, ProfileView, PasswordChangeView
 from rest_framework.routers import DefaultRouter
 
 app_name = 'users'
@@ -11,10 +11,11 @@ router.register('auth', UserAuthViewSet, basename="auth")
 router.register('', ProfileView, basename="profile")
 # print(router.urls)
 urlpatterns = [
-    path(r'verify_email/', EmailVerificationView.as_view(), name="resend_email"),
-    path(r'verify_email/<str:email>/', EmailVerificationView.as_view(), name='email_verification'),
+    path(r'verify_email/', EmailVerificationView.as_view(), name="resend-email"),
+    path(r'verify_email/<str:email>/', EmailVerificationView.as_view(), name='email-verification'),
     path(r'users/', include(router.urls)),
-    path('password-reset-complete/<str:email>/<code>/', SetNewPasswordAPIView.as_view(),
+    path(r'change_password/', PasswordChangeView.as_view(), name="password-change"),
+    path('password_reset_complete/<str:email>/<code>/', SetNewPasswordAPIView.as_view(),
          name='password-reset-complete'),
     # path(r'profile/', ProfileView.as_view(), name="profile"),
     # path("signup/", SignUp.as_view(), name="signup"),
