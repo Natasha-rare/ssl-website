@@ -8,6 +8,7 @@ from django.urls import reverse, reverse_lazy
 from django.conf import settings
 from django.utils.timezone import now
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.sites.models import Site
 
 class UserRole(models.TextChoices):
     """Модель для роли пользователя."""

@@ -11,6 +11,19 @@ User = get_user_model()
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils.translation import gettext_lazy as _
 
+from .models import UserRole
+
+class ChoicesField(serializers.Field):
+    def __init__(self, choices, **kwargs):
+        self._choices = choices
+        super(ChoicesField, self).__init__(**kwargs)
+
+    def to_representation(self, obj):
+        return self._choices[obj]
+
+    def to_internal_value(self, data):
+        return getattr(self._choices, data)
+
 class UserSerialiser(serializers.ModelSerializer):
     class Meta:
         model = User
@@ -44,15 +57,10 @@ class UserSerialiser(serializers.ModelSerializer):
         return value
 
     def update(self, instance, validated_data):
-        user = self.context['request'].user
-
-        if user.pk != instance.pk:
-            raise serializers.ValidationError({"authorize": "У вас нет прав для редактирования данной записи"})
         print(instance)
         instance.first_name = validated_data.get('first_name', instance.first_name).capitalize()
         instance.last_name = validated_data.get('last_name', instance.last_name).capitalize()
         instance.father_name = validated_data.get('father_name', instance.father_name).capitalize()
-
         if 'telegram' in validated_data:
             instance.telegram = f"https://t.me/{validated_data.get('telegram')}"
         instance.image = validated_data.get('image', instance.image)
@@ -63,14 +71,28 @@ class UserSerialiser(serializers.ModelSerializer):
         instance.save()
         return instance
 
+
 class UserAllSerializer(serializers.ModelSerializer):
+    role = serializers.ChoiceField(
+        choices=UserRole.choices,
+        default=UserRole.USER,
+    )
+    
     class Meta:
         model = User
-        fields = ('first_name', 'last_name', 'father_name', 'telegram',
+        fields = ('id', 'first_name', 'last_name', 'father_name', 'telegram',
                   'email', 'hse_pass', 'is_accepted', 'is_verified_email', 'role')
         read_only_fields = ('first_name', 'last_name', 'father_name', 'telegram',
                   'email')
 
+    def update(self, instance, validated_data):
+        instance.role = validated_data.get('role', instance.role)
+        instance.is_accepted = validated_data.get('is_accepted', instance.is_accepted)
+        instance.is_verified_email = validated_data.get('is_verified_email', instance.is_verified_email)
+        instance.hse_pass = validated_data.get('hse_pass', instance.hse_pass)
+
+        instance.save()
+        return instance
 
 class UserLoginSerializer(serializers.ModelSerializer):
     class Meta:
@@ -104,7 +126,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         user = User.objects.filter(telegram=f"https://t.me/{attrs['telegram']}")
-        if user:
+        if user and user.is_verified_email:
             raise serializers.ValidationError({"telegram": "Пользователь с таким телеграмом уже существует."})
         if attrs['password1'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Пароли не совпадают"})

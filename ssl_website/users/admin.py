@@ -5,7 +5,7 @@ from .models import User, EmailVerification
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass', 'is_verified_email')
+    list_display = ('id', 'first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass', 'is_verified_email')
     fieldsets = (
         ('Личная информация', {
             'fields': (('first_name', 'last_name'), 'father_name', 'email', 'telegram', 'image', 'hse_pass','tg_bot_id', 'is_verified_email')
