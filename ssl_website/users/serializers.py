@@ -10,7 +10,7 @@ from .models import EmailVerification
 User = get_user_model()
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils.translation import gettext_lazy as _
-
+from django.contrib.auth import get_user_model, password_validation, authenticate
 from .models import UserRole
 
 class ChoicesField(serializers.Field):
@@ -23,6 +23,12 @@ class ChoicesField(serializers.Field):
 
     def to_internal_value(self, data):
         return getattr(self._choices, data)
+
+class UserPwdChangeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = User
+        fields = ('email', )
+
 
 class UserSerialiser(serializers.ModelSerializer):
     class Meta:
@@ -95,10 +101,29 @@ class UserAllSerializer(serializers.ModelSerializer):
         return instance
 
 class UserLoginSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(required=True)
     class Meta:
         model = User
         fields = ('email', 'password', )
 
+    def validate(self, attrs):
+        user = authenticate(email=attrs.get('email', None), password=attrs.get('password', None))
+        if user is not None:
+            if user.is_verified_email and user.is_accepted:
+                return attrs
+            elif user.is_accepted:
+                raise AuthenticationFailed("Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ...")
+            elif user.is_verified_email:
+                raise AuthenticationFailed("Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, "
+                                           "напишите организатору ...")
+            else:
+                raise AuthenticationFailed("Ваша почта не подтверждена и аккаунт не подтвержден модератором")
+        else:
+            raise AuthenticationFailed("Неверная почта или пароль")
+
+        return {'email': user.email}
+
+        return super().validate(attrs)
 
 class EmptySerializer(serializers.Serializer):
     pass
@@ -191,6 +216,9 @@ class SetNewPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(required=True, validators=[validate_password])
     email = serializers.EmailField(required=True)
 
+    class Meta:
+        model = User
+        fields = ('password', )
     def validate(self, attrs):
         try:
             password = attrs.get('password')

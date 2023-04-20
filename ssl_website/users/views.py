@@ -19,15 +19,21 @@ from json import JSONEncoder
 from .models import EmailVerification
 from .serializers import UserRegistrationSerializer, \
     SetNewPasswordSerializer, EmailVerificationSerializer, sendVerification, \
-    UserSerialiser, EmptySerializer, UserAllSerializer, PasswordChangeSerializer
+    UserSerialiser, EmptySerializer, UserAllSerializer, PasswordChangeSerializer, \
+    UserLoginSerializer, UserPwdChangeSerializer
 from django.core.mail import send_mail
 from .models import UserRole
 User = get_user_model()
 
 class UserAuthViewSet(viewsets.GenericViewSet):
     queryset = User.objects.all()
-    serializer_class = UserRegistrationSerializer
-
+    serializer_class = EmptySerializer
+    serializer_classes = {
+        'register': UserRegistrationSerializer,
+        'password_change': UserPwdChangeSerializer,
+        # 'users_all': UserAllSerializer
+        'login': UserLoginSerializer
+    }
     @action(methods=['POST', ], detail=False)
     def register(self, request, *args, **kwargs):
         print('register here')
@@ -47,26 +53,33 @@ class UserAuthViewSet(viewsets.GenericViewSet):
 
     @action(methods=['POST', ], detail=False)
     def login(self, request):
-        data = request.data
-        email = data.get('email', None)
-        password = data.get('password', None)
-        user = authenticate(email=email, password=password)
-        # print('jsjdjdjsjd', reverse('users:registration'))
-        if user is not None:
-            if user.is_verified_email and user.is_accepted:
-                return Response({"Success": "Вход успешен", "data": data['email']}, status=status.HTTP_200_OK)  # redirect to index/profile
-            elif user.is_accepted:
-                return Response({"No active": "Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ..."},
-                                status=status.HTTP_403_FORBIDDEN)
-            elif user.is_verified_email:
-                return Response({
-                                    "Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
-                                status=status.HTTP_403_FORBIDDEN)
-            else:
-                return Response({"No active": "Ваша почта не подтверждена и аккаунт не подтвержден"},
-                                status=status.HTTP_403_FORBIDDEN)
-        else:
-            return Response({"Invalid": "Неверная почта или пароль"}, status=status.HTTP_404_NOT_FOUND)
+        # data = request.data
+        # email = data.get('email', None)
+        # password = data.get('password', None)
+        # user = authenticate(email=email, password=password)
+        serializer = self.get_serializer(data=request.data)
+        print(serializer)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        print('jsjdjdjsjd')
+        return Response(serializer.data, status=status.HTTP_200_OK)
+        # user = authenticate(email=data.get('email', None), password=data.get('password', None))
+        # if user is not None:
+        #     if user.is_verified_email and user.is_accepted:
+        #         return Response({"Success": "Вход успешен", "data": data['email']},
+        #                         status=status.HTTP_200_OK)  # redirect to index/profile
+        #     elif user.is_accepted:
+        #         return Response({"No active": "Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ..."},
+        #                         status=status.HTTP_403_FORBIDDEN)
+        #     elif user.is_verified_email:
+        #         return Response({
+        #             "Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
+        #             status=status.HTTP_403_FORBIDDEN)
+        #     else:
+        #         return Response({"No active": "Ваша почта не подтверждена и аккаунт не подтвержден"},
+        #                         status=status.HTTP_403_FORBIDDEN)
+        # else:
+        #     return Response({"Invalid": "Неверная почта или пароль"}, status=status.HTTP_404_NOT_FOUND)
 
     @action(methods=['POST', ], detail=False)
     def password_change(self, request):
@@ -94,6 +107,13 @@ class UserAuthViewSet(viewsets.GenericViewSet):
         else:
             return Response({"Invalid": "Неверная почта"}, status=status.HTTP_404_NOT_FOUND)
 
+    def get_serializer_class(self):
+        if not isinstance(self.serializer_classes, dict):
+            raise ImproperlyConfigured("serializer_classes should be a dict mapping.")
+
+        if self.action in self.serializer_classes.keys():
+            return self.serializer_classes[self.action]
+        return super().get_serializer_class()
 class UserEncoder(JSONEncoder):
     def default(self, o):
         return o.__dict__
