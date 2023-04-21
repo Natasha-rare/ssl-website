@@ -99,7 +99,7 @@ class UserAllSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.role = validated_data.get('role', instance.role)
-        if instance.is_accepted != validated_data.get('is_accepted'):
+        if instance.is_accepted != validated_data.get('is_accepted') and 'is_accepted' in validated_data:
             instance.is_accepted = validated_data.get('is_accepted', instance.is_accepted)
         #     send verification
         instance.is_verified_email = validated_data.get('is_verified_email', instance.is_verified_email)
