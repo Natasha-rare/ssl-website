@@ -1,6 +1,6 @@
 import uuid
 from django.contrib import auth
-from django.contrib.auth import get_user_model, password_validation, authenticate
+from django.contrib.auth import get_user_model, password_validation, authenticate, login
 from django.conf import settings
 from django.contrib.sites.models import Site
 from django.contrib.sites.shortcuts import get_current_site
@@ -44,7 +44,7 @@ class UserAuthViewSet(viewsets.GenericViewSet):
         user_data = serializer.data
         return Response(user_data, status=status.HTTP_201_CREATED)
 
-    @action(methods=['POST', ], detail=False)
+    @action(methods=['GET', ], detail=False)
     @permission_classes([IsAuthenticated, ])
     def logout(self, request):
         print(request)
@@ -53,16 +53,11 @@ class UserAuthViewSet(viewsets.GenericViewSet):
 
     @action(methods=['POST', ], detail=False)
     def login(self, request):
-        # data = request.data
-        # email = data.get('email', None)
-        # password = data.get('password', None)
-        # user = authenticate(email=email, password=password)
+        print(request.data)
         serializer = self.get_serializer(data=request.data)
-        print(serializer)
         serializer.is_valid(raise_exception=True)
-        serializer.save()
-        print('jsjdjdjsjd')
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        login(request, User.objects.get(email=request.data['email']))
+        return Response(serializer.data['email'], status=status.HTTP_200_OK)
         # user = authenticate(email=data.get('email', None), password=data.get('password', None))
         # if user is not None:
         #     if user.is_verified_email and user.is_accepted:
@@ -162,8 +157,12 @@ class EmailVerificationView(generics.GenericAPIView):
         print(user)
         email_verifications = EmailVerification.objects.filter(user=user)
         serializer = UserRegistrationSerializer(user)
-        if email_verifications.exists() and not email_verifications.last().is_expired() \
-                and email_verifications.last().code == code:
+        print(email_verifications.exists())
+        print(not email_verifications.last().is_expired())
+        print(email_verifications.last().code, code, str(email_verifications.last().code) == str(code))
+        if email_verifications.exists() and (not email_verifications.last().is_expired()) \
+                and (str(email_verifications.last().code) == str(code)):
+            print('aaaaaaaaaapppp')
             user.is_verified_email = True
             user.save()
             if user.is_accepted:
@@ -172,7 +171,8 @@ class EmailVerificationView(generics.GenericAPIView):
             return Response({"Success": f"Ваша заявка на участие в клубе успешно принята. Ожидайте ответ в течении трёх дней. Результат рассмотрения заявки придет на {kwargs['email']}."}, status=status.HTTP_200_OK)
         elif email_verifications.first().is_expired():
             return Response({"Error": "Действие кода подтверждения истекло. Для получения нового кода перейдите по ссылке ..."}, status=status.HTTP_403_FORBIDDEN)
-        if not user.is_accepted:
+        elif not user.is_accepted:
+            print('here')
             return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
                                 status=status.HTTP_403_FORBIDDEN)
         return Response(serializer.data, status=status.HTTP_406_NOT_ACCEPTABLE)
@@ -196,7 +196,7 @@ class ProfileView(viewsets.ModelViewSet):
     serializer_class = EmptySerializer
     serializer_classes = {
         'retrieve': UserSerialiser,
-        # 'user_profile_admin': UserAllSerializer,
+        'update': UserSerialiser,
         # 'users_all': UserAllSerializer
         'list': UserAllSerializer
     }
@@ -231,14 +231,15 @@ class ProfileView(viewsets.ModelViewSet):
     def update(self, request, pk=None, *args, **kwargs):
         if request.user.role == UserRole.ADMIN:
             user = get_object_or_404(User, pk=pk)
-            serializer = UserAllSerializer(user, data=request.data, partial=True)
+            serializer = UserAllSerializer(user, data=request.data, partial=True, context={'request': request})
             serializer.is_valid(raise_exception=True)
             self.perform_update(serializer)
             return Response(serializer.data)
         else:
             user = get_object_or_404(User, email=request.user.email)
-            serializer = UserSerialiser(user, data=request.data, partial=True)
+            serializer = UserSerialiser(user, data=request.data, partial=True, context={'request': request})
             serializer.is_valid(raise_exception=True)
+            print(serializer)
             self.perform_update(serializer)
             return Response(serializer.data)
 

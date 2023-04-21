@@ -10,9 +10,9 @@ from .models import EmailVerification
 User = get_user_model()
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils.translation import gettext_lazy as _
-from django.contrib.auth import get_user_model, password_validation, authenticate
+from django.contrib.auth import get_user_model, password_validation, authenticate, login
 from .models import UserRole
-
+from django.core.mail import send_mail
 class ChoicesField(serializers.Field):
     def __init__(self, choices, **kwargs):
         self._choices = choices
@@ -25,16 +25,18 @@ class ChoicesField(serializers.Field):
         return getattr(self._choices, data)
 
 class UserPwdChangeSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField()
     class Meta:
         model = User
         fields = ('email', )
 
 
 class UserSerialiser(serializers.ModelSerializer):
+    email = serializers.EmailField()
     class Meta:
         model = User
         fields = ('first_name', 'last_name', 'father_name', 'telegram',
-                  'email', 'image', 'hse_pass')  # add password – ?
+                  'email', 'image', 'hse_pass')
 
         extra_kwargs = {
             'father_name': {'required': False, 'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$',
@@ -51,29 +53,33 @@ class UserSerialiser(serializers.ModelSerializer):
         return value
 
     def validate_image(self, value):
-        if value.size > 10.0*1024*1024:
-            raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
+        if value:
+            if value.size > 10.0*1024*1024:
+                raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
         return value
 
-    # change --------------------
+
     def validate_email(self, value):
         user = self.context['request'].user
+        print(user)
         if User.objects.exclude(pk=user.pk).filter(email=value).exists():
+            print(User.objects.exclude(pk=user.pk).filter(email=value).exists())
             raise serializers.ValidationError({"email": "Пользователь с такой почтой уже существует"})
         return value
 
     def update(self, instance, validated_data):
-        print(instance)
         instance.first_name = validated_data.get('first_name', instance.first_name).capitalize()
         instance.last_name = validated_data.get('last_name', instance.last_name).capitalize()
         instance.father_name = validated_data.get('father_name', instance.father_name).capitalize()
-        if 'telegram' in validated_data:
+        if instance.telegram != validated_data.get('telegram') and 'telegram' in validated_data:
             instance.telegram = f"https://t.me/{validated_data.get('telegram')}"
         instance.image = validated_data.get('image', instance.image)
-        if 'email' in validated_data:
+        if instance.email != validated_data.get('email') and 'email' in validated_data:
             sendVerification(validated_data.get('email').lower(), kwargs={"email": instance.email})
+            # instance.is_verified_email = False
             instance.email = validated_data.get('email').lower()
             # instance.save()
+        instance.hse_pass = bool(validated_data.get("hse_pass", instance.hse_pass))
         instance.save()
         return instance
 
@@ -93,7 +99,9 @@ class UserAllSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.role = validated_data.get('role', instance.role)
-        instance.is_accepted = validated_data.get('is_accepted', instance.is_accepted)
+        if instance.is_accepted != validated_data.get('is_accepted'):
+            instance.is_accepted = validated_data.get('is_accepted', instance.is_accepted)
+        #     send verification
         instance.is_verified_email = validated_data.get('is_verified_email', instance.is_verified_email)
         instance.hse_pass = validated_data.get('hse_pass', instance.hse_pass)
 
@@ -107,8 +115,9 @@ class UserLoginSerializer(serializers.ModelSerializer):
         fields = ('email', 'password', )
 
     def validate(self, attrs):
-        user = authenticate(email=attrs.get('email', None), password=attrs.get('password', None))
-        if user is not None:
+        user = authenticate(email=attrs.get('email', ''), password=attrs.get('password', ''))
+        # print(user, 'aaaaaaaaaa')
+        if user:
             if user.is_verified_email and user.is_accepted:
                 return attrs
             elif user.is_accepted:
@@ -131,9 +140,9 @@ class EmptySerializer(serializers.Serializer):
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
     image = serializers.ImageField(use_url="media", required=False)
-    accept_conditions = serializers.BooleanField(required=True)
-    password1 = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    password2 = serializers.CharField(write_only=True, required=True)
+    accept_conditions = serializers.BooleanField(required=True, write_only=True)
+    password1 = serializers.CharField(write_only=True, required=True, validators=[validate_password], label="Пароль")
+    password2 = serializers.CharField(write_only=True, required=True, label="Повторите пароль")
 
     class Meta:
         model = User
@@ -155,25 +164,29 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"telegram": "Пользователь с таким телеграмом уже существует."})
         if attrs['password1'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Пароли не совпадают"})
-        if attrs['image'].size > 10.0*1024*1024:
-            raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
+        if 'image' in attrs:
+            if attrs['image'].size > 10.0*1024*1024:
+                raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
         if not attrs['accept_conditions']:
-            raise serializers.ValidationError({"conditions": "Для продолжения регистрации, "                                              "вы должны принять условия пользовательского соглашения"})
+            # raise serializers.ValidationError({"conditions": "Для продолжения регистрации,необходимо принять условия пользовательского соглашения"})
+            raise serializers.ValidationError({"conditions": "Для продолжения регистрации,необходимо принять условия пользовательского соглашения"})
+
         attrs['first_name'] = attrs['first_name'].capitalize()
         attrs['last_name'] = attrs['last_name'].capitalize()
         attrs['father_name'] = attrs['father_name'].capitalize()
         attrs['email'] = attrs['email'].lower()
+
         return attrs
 
     def create(self, validated_data):
         user = User.objects.create(
-            first_name=validated_data['first_name'],
-            last_name=validated_data['last_name'],
-            father_name=validated_data['father_name'],
-            email=validated_data['email'],
-            telegram=f"https://t.me/{validated_data['telegram']}",
-            hse_pass=validated_data['hse_pass'],
-            image=validated_data['image']
+            first_name=validated_data.get('first_name', None),
+            last_name=validated_data.get('last_name', None),
+            father_name=validated_data.get('father_name', None),
+            email=validated_data.get('email', None),
+            telegram=f"https://t.me/{validated_data.get('telegram', None)}",
+            hse_pass=validated_data.get('hse_pass', None),
+            image=validated_data.get('image', None)
         )
         user.set_password(validated_data['password1'])
         user.save()
@@ -183,7 +196,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 def sendVerification(email, *args, **kwargs):
     user = User.objects.filter(email=email)
-    print(kwargs, kwargs['kwargs']['email'])
     if user.exists():
         print('sdfsfsf')
         user = user[0]
@@ -233,7 +245,8 @@ class SetNewPasswordSerializer(serializers.Serializer):
         except Exception as e:
             print(e)
             raise AuthenticationFailed('Ссылка для сброса пароля не валидна', 401)
-        return attr
+
+        return attrs
 
 
 class PasswordChangeSerializer(serializers.Serializer):
