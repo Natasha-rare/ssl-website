@@ -34,9 +34,9 @@ class User(AbstractUser):
         default=UserRole.USER,
         verbose_name="Роль",
     )
-    tg_bot_id = models.CharField(_("id for telegram bot"), blank=True, max_length=40, null=True, default=None)
+    tg_bot_id = models.URLField(_("id for telegram bot"), blank=True, max_length=60, null=True, default=None)
     hse_pass = models.BooleanField("Есть пропуск в Вышку", default=False, blank=False)
-    is_accepted = models.BooleanField("Заявка принята", default=False, blank=False)
+    is_accepted = models.BooleanField("Заявка принята", default=None, blank=False, null=True)
     is_verified_email = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'

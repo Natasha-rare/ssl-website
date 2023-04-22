@@ -58,23 +58,6 @@ class UserAuthViewSet(viewsets.GenericViewSet):
         serializer.is_valid(raise_exception=True)
         login(request, User.objects.get(email=request.data['email']))
         return Response(serializer.data['email'], status=status.HTTP_200_OK)
-        # user = authenticate(email=data.get('email', None), password=data.get('password', None))
-        # if user is not None:
-        #     if user.is_verified_email and user.is_accepted:
-        #         return Response({"Success": "Вход успешен", "data": data['email']},
-        #                         status=status.HTTP_200_OK)  # redirect to index/profile
-        #     elif user.is_accepted:
-        #         return Response({"No active": "Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ..."},
-        #                         status=status.HTTP_403_FORBIDDEN)
-        #     elif user.is_verified_email:
-        #         return Response({
-        #             "Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
-        #             status=status.HTTP_403_FORBIDDEN)
-        #     else:
-        #         return Response({"No active": "Ваша почта не подтверждена и аккаунт не подтвержден"},
-        #                         status=status.HTTP_403_FORBIDDEN)
-        # else:
-        #     return Response({"Invalid": "Неверная почта или пароль"}, status=status.HTTP_404_NOT_FOUND)
 
     @action(methods=['POST', ], detail=False)
     def password_change(self, request):
@@ -130,23 +113,6 @@ class SetNewPasswordAPIView(generics.GenericAPIView):
 class EmailVerificationView(generics.GenericAPIView):
     serializer_class = EmailVerificationSerializer
 
-    # def send_verification(self, request):
-    #     email = request.data.get("email")
-    #     user = User.objects.filter(email=email)
-    #     print(user)
-    #     if user.exists():
-    #         if user[0].is_accepted:
-    #             try:
-    #                 sendVerification(email)
-    #                 return Response({"Success": "Код подтверждения был выслан на вашу почту"}, status=status.HTTP_200_OK)
-    #             except Exception as error:
-    #                 return Response({"Error": error})
-    #         else:
-    #             return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
-    #                             status=status.HTTP_403_FORBIDDEN)
-    #     else:
-    #         return Response({"Invalid": "Неверная почта"}, status=status.HTTP_404_NOT_FOUND)
-
     def post(self, request, **kwargs):
         if 'email' not in kwargs:
             sendVerification(request.data.get("email"))
@@ -196,7 +162,7 @@ class ProfileView(viewsets.ModelViewSet):
     serializer_class = EmptySerializer
     serializer_classes = {
         'retrieve': UserSerialiser,
-        'update': UserSerialiser,
+        # 'update': UserSerialiser,
         # 'users_all': UserAllSerializer
         'list': UserAllSerializer
     }
@@ -220,11 +186,13 @@ class ProfileView(viewsets.ModelViewSet):
             instance = self.get_object()
         except:
             return Response({"Error": "Пользователь с таким id не найден"}, status=status.HTTP_404_NOT_FOUND)
-        print(instance)
+        print(instance, 'retrieve')
         if request.user.role == UserRole.ADMIN:
             serializer = UserAllSerializer(instance)
         else:
             serializer = UserSerialiser(instance)
+        serializer.data['telegram'] = serializer.data['telegram'].split('/')[-1]
+        print(serializer.data['telegram'].split('/')[-1])
         return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
@@ -298,6 +266,11 @@ class ProfileView(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if not isinstance(self.serializer_classes, dict):
             raise ImproperlyConfigured("serializer_classes should be a dict mapping.")
+        if self.action == 'update':
+            if self.request.user.role == UserRole.ADMIN:
+                return UserAllSerializer
+            else:
+                return UserSerialiser
 
         if self.action in self.serializer_classes.keys():
             return self.serializer_classes[self.action]

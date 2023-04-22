@@ -16,7 +16,7 @@ class UserAdmin(admin.ModelAdmin):
     )
     search_fields = ['role', 'telegram', 'email', 'hse_pass', 'is_accepted']
     list_filter = ['role', 'hse_pass', 'is_accepted', 'telegram', 'email']
-    list_display_links = ('first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass')
+    list_display_links = ('first_name', 'last_name', 'email', 'role', 'is_accepted', 'hse_pass')
     list_per_page = 25
 
 admin.site.register(EmailVerification)

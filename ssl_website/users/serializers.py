@@ -1,12 +1,17 @@
 from django.core.validators import RegexValidator
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 import uuid
 from datetime import timedelta
 from django.utils.timezone import now
+from rest_framework.reverse import reverse_lazy
+
 from .models import EmailVerification
+from django.conf import settings
+
 User = get_user_model()
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils.translation import gettext_lazy as _
@@ -99,9 +104,20 @@ class UserAllSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         instance.role = validated_data.get('role', instance.role)
+        print('h1')
         if instance.is_accepted != validated_data.get('is_accepted') and 'is_accepted' in validated_data:
             instance.is_accepted = validated_data.get('is_accepted', instance.is_accepted)
-        #     send verification
+            print(reverse('users:profile-detail', kwargs={"pk": instance.pk}), 'aaaa')
+            send_mail(
+                subject="Аккаунт подтвержден",
+                message=f"Здравствуйте, {instance.first_name} {instance.last_name}\n"
+                        f"Администратор подтвердил Ваш аккаунт и теперь вы можете участвовать в играх"
+                        f"Для перехода в личный кабинет, перейдите по ссылке {settings.DOMAIN_NAME}"
+                        f"{reverse('users:profile-detail', kwargs={'pk': instance.pk})}",
+                from_email=settings.EMAIL_HOST_USER,
+                recipient_list=[instance.email],
+                fail_silently=False,
+            )
         instance.is_verified_email = validated_data.get('is_verified_email', instance.is_verified_email)
         instance.hse_pass = validated_data.get('hse_pass', instance.hse_pass)
 
@@ -162,6 +178,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user = User.objects.filter(telegram=f"https://t.me/{attrs['telegram']}")
         if user and user.is_verified_email:
             raise serializers.ValidationError({"telegram": "Пользователь с таким телеграмом уже существует."})
+        user = User.objects.filter(email=attrs['email'])
+        if user and \
+                user.is_validated_email:
+            if not User.objects.filter(email=attrs['email']).is_accepted:
+                raise serializers.ValidationError({'email': "Вы регестрировались раннее, но вам было отказано в доступе. "
+                                                            "Для регистрации заново напишите ..."})
+            raise serializers.ValidationError({'email': "Пользователь с такой почтой уже зарегистрирован"})
+        else:
+            attrs['email'] = attrs['email'].lower()
         if attrs['password1'] != attrs['password2']:
             raise serializers.ValidationError({"password": "Пароли не совпадают"})
         if 'image' in attrs:
@@ -174,7 +199,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         attrs['first_name'] = attrs['first_name'].capitalize()
         attrs['last_name'] = attrs['last_name'].capitalize()
         attrs['father_name'] = attrs['father_name'].capitalize()
-        attrs['email'] = attrs['email'].lower()
+
 
         return attrs
 

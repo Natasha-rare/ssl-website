@@ -8,8 +8,8 @@ from rest_framework.routers import DefaultRouter
 app_name = 'users'
 router = DefaultRouter()
 router.register('auth', UserAuthViewSet, basename="auth")
-router.register('', ProfileView, basename="profile")
-# print(router.urls)
+router.register('profile', ProfileView, basename="profile")
+print(router.urls)
 urlpatterns = [
     path(r'verify_email/', EmailVerificationView.as_view(), name="resend-email"),
     path(r'verify_email/<str:email>/', EmailVerificationView.as_view(), name='email-verification'),
