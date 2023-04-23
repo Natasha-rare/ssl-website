@@ -71,12 +71,11 @@ class EmailVerification(models.Model):
         print(link)
         verification_link = f'{settings.DOMAIN_NAME}{link}'
         subject = f'Подверждение учетной записи для пользователя {self.user.first_name} {self.user.last_name}'
-        message = 'Ваш код подтверждения: {}.\n' \
-                  'Для подверждения учетной записи для {} перейдите по ссылке: {} '.format(
-            self.code,
-            self.user.email,
-            verification_link
-        )
+        message = f'Здравствуйте, {self.user.first_name} {self.user.last_name}, \n' \
+                  f'Добро пожаловать в Soft Skills Lab! \n' \
+                  f'Для завершения регистрации необходимо перейти по ссылке: {verification_link}' \
+                  f'и ввести код подтверждения: {self.code}.\n'
+
         send_mail(
             subject=subject,
             message=message,

@@ -103,36 +103,36 @@ class SetNewPasswordAPIView(generics.GenericAPIView):
     def patch(self, request, **kwargs):
         print(request.data)
         password = request.data.get("password")
+        password2 = request.data.get("password2")
         email = kwargs["email"]
-        serializer = self.serializer_class(data={"password": password, "email":email})
+        serializer = self.serializer_class(data={"password": password, 'password2':password2,"email":email})
         print(serializer)
         serializer.is_valid(raise_exception=True)
-        return Response({'success': True, 'message': 'Password reset success'}, status=status.HTTP_200_OK)
+        return Response({'success': True, 'message': 'Пароль успешно обновлен'}, status=status.HTTP_200_OK)
 
 
 class EmailVerificationView(generics.GenericAPIView):
     serializer_class = EmailVerificationSerializer
 
+    def get(self, request, **kwargs):
+        sendVerification(kwargs['email'])
+        return Response({"Success": "Код подтверждения был выслан на вашу почту"}, status=status.HTTP_200_OK)
+
     def post(self, request, **kwargs):
-        if 'email' not in kwargs:
-            sendVerification(request.data.get("email"))
-            return Response({"Success": "Код подтверждения был выслан на вашу почту"}, status=status.HTTP_200_OK)
-        print(kwargs['email'])
         code = request.data['code']
         user = get_object_or_404(User, email=kwargs['email'])
-        print(user)
         email_verifications = EmailVerification.objects.filter(user=user)
         serializer = UserRegistrationSerializer(user)
-        print(email_verifications.exists())
-        print(not email_verifications.last().is_expired())
-        print(email_verifications.last().code, code, str(email_verifications.last().code) == str(code))
+        # print(email_verifications.exists())
+        # print(not email_verifications.last().is_expired())
+        # print(email_verifications.last().code, code, str(email_verifications.last().code) == str(code))
         if email_verifications.exists() and (not email_verifications.last().is_expired()) \
                 and (str(email_verifications.last().code) == str(code)):
             print('aaaaaaaaaapppp')
             user.is_verified_email = True
             user.save()
             if user.is_accepted:
-                return Response({"Success": "Ваша почта успешно обновлена"})
+                return Response({"Success": "Ваша почта успешно подтверждена"})
             # HttpResponseRedirect
             return Response({"Success": f"Ваша заявка на участие в клубе успешно принята. Ожидайте ответ в течении трёх дней. Результат рассмотрения заявки придет на {kwargs['email']}."}, status=status.HTTP_200_OK)
         elif email_verifications.first().is_expired():

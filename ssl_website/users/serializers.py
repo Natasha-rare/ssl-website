@@ -106,18 +106,27 @@ class UserAllSerializer(serializers.ModelSerializer):
         instance.role = validated_data.get('role', instance.role)
         print('h1')
         if instance.is_accepted != validated_data.get('is_accepted') and 'is_accepted' in validated_data:
-            instance.is_accepted = validated_data.get('is_accepted', instance.is_accepted)
-            print(reverse('users:profile-detail', kwargs={"pk": instance.pk}), 'aaaa')
-            send_mail(
-                subject="Аккаунт подтвержден",
-                message=f"Здравствуйте, {instance.first_name} {instance.last_name}\n"
-                        f"Администратор подтвердил Ваш аккаунт и теперь вы можете участвовать в играх"
-                        f"Для перехода в личный кабинет, перейдите по ссылке {settings.DOMAIN_NAME}"
-                        f"{reverse('users:profile-detail', kwargs={'pk': instance.pk})}",
-                from_email=settings.EMAIL_HOST_USER,
-                recipient_list=[instance.email],
-                fail_silently=False,
-            )
+            instance.is_accepted = validated_data.get('is_accepted')
+            if validated_data.get('is_accepted'):
+                send_mail(
+                    subject="Аккаунт подтвержден",
+                    message=f"Здравствуйте, {instance.first_name} {instance.last_name}\n"
+                            f"Администратор подтвердил Ваш аккаунт и теперь вы можете участвовать в играх \n"
+                            f"Для перехода в личный кабинет, перейдите по ссылке {settings.DOMAIN_NAME}"
+                            f"{reverse('users:profile-detail', kwargs={'pk': instance.pk})}",
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[instance.email],
+                    fail_silently=False,
+                )
+            elif validated_data.get('is_accepted') is False:
+                send_mail(
+                    subject="Заявка отклонена",
+                    message=f"Здравствуйте, {instance.first_name} {instance.last_name}\n"
+                            f"К сожалению, ваша заявка отклонена и администратор пока не готов принять Вас в клуб",
+                    from_email=settings.EMAIL_HOST_USER,
+                    recipient_list=[instance.email],
+                    fail_silently=False,
+                )
         instance.is_verified_email = validated_data.get('is_verified_email', instance.is_verified_email)
         instance.hse_pass = validated_data.get('hse_pass', instance.hse_pass)
 
@@ -137,7 +146,8 @@ class UserLoginSerializer(serializers.ModelSerializer):
             if user.is_verified_email and user.is_accepted:
                 return attrs
             elif user.is_accepted:
-                raise AuthenticationFailed("Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке ...")
+                link = f"{settings.DOMAIN_NAME}{reverse('users:email-verification', kwargs={'email': attrs.get('email')})}"
+                raise AuthenticationFailed(f"Ваша почта не подтверждена. Для подвтерждения прейдите по ссылке {link}")
             elif user.is_verified_email:
                 raise AuthenticationFailed("Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, "
                                            "напишите организатору ...")
@@ -216,6 +226,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         user.set_password(validated_data['password1'])
         user.save()
         sendVerification(validated_data['email'])
+        send_mail(
+            subject="Регистрация нового пользователя",
+            message=f"Зарегистрирован новый пользователь {user.first_name} {user.last_name}",
+            from_email=settings.EMAIL_HOST_USER,
+            recipient_list=[settings.EMAIL_HOST_USER],
+            fail_silently=False,
+        )
         return user
 
 
@@ -251,25 +268,27 @@ class EmailVerificationSerializer(serializers.ModelSerializer):
 
 class SetNewPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(required=True, validators=[validate_password])
+    password2 = serializers.CharField(required=True, validators=[validate_password], write_only=True)
+
     email = serializers.EmailField(required=True)
 
     class Meta:
         model = User
-        fields = ('password', )
+        fields = ('password', 'password2', )
+
     def validate(self, attrs):
-        try:
-            password = attrs.get('password')
-            email = attrs.get('email')
-            user = User.objects.get(email=email)
-            if user is not None:
-                user.set_password(password)
-                user.save()
-                return user
-            else:
-                raise AuthenticationFailed('Пользователь с такой почтой не найден', 404)
-        except Exception as e:
-            print(e)
-            raise AuthenticationFailed('Ссылка для сброса пароля не валидна', 401)
+        password = attrs.get('password')
+        password2 = attrs.get('password2')
+        if password != password2:
+            raise serializers.ValidationError({'password': "Новые пароли не совпадают"})
+        email = attrs.get('email')
+        user = User.objects.get(email=email)
+        if user is not None:
+            user.set_password(password)
+            user.save()
+            return user
+        else:
+            raise AuthenticationFailed('Пользователь с такой почтой не найден', 404)
 
         return attrs
 
