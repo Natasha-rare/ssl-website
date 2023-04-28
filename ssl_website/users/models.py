@@ -38,6 +38,7 @@ class User(AbstractUser):
     hse_pass = models.BooleanField("Есть пропуск в Вышку", default=False, blank=False)
     is_accepted = models.BooleanField("Заявка принята", default=None, blank=False, null=True)
     is_verified_email = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']

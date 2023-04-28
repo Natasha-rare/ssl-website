@@ -211,58 +211,6 @@ class ProfileView(viewsets.ModelViewSet):
             self.perform_update(serializer)
             return Response(serializer.data)
 
-    # @action(methods=['GET', 'PATCH', ], detail=False)
-    # @permission_classes([StudentPermission| AdminPermission | ArbitratorPermission])
-    # def user_profile(self, request):
-    #
-    #     if request.method == "GET":
-    #         serializer = self.get_serializer(user, many=False)
-    #         return Response(serializer.data)
-    #     if request.method == "PATCH":
-    #         serializer = self.get_serializer(user, data=request.data, partial=True)
-    #         serializer.is_valid(raise_exception=True)
-    #         self.perform_update(serializer)
-    #         return Response(serializer.data)
-    #
-    #
-    # @action(methods=['GET', 'PUT', ], detail=False, permission_classes=[AdminPermission, ])
-    # def users_all(self, request, pk=None):
-    #     if not(pk):
-    #         if request.method == "GET" and not(pk):
-    #             users = User.objects.all()
-    #             try:
-    #                 serializer = self.get_serializer(users, many=True)
-    #                 print(serializer)
-    #                 return Response(serializer.data, status=status.HTTP_200_OK)
-    #             except:
-    #                 serializer.is_valid()
-    #                 return Response(serializer.errors,
-    #                             status=status.HTTP_400_BAD_REQUEST)
-    #     else:
-    #         user = get_object_or_404(User, pk=pk)
-    #         if request.method == 'GET':
-    #             serializer = self.get_serializer(user, many=False)
-    #             return Response(serializer.data)
-    #         else:
-    #             serializer = self.get_serializer(user, data=request.data, partial=True)
-    #             serializer.is_valid(raise_exception=True)
-    #             self.perform_update(serializer)
-    #             return Response(serializer.data)
-    #
-    # @action(methods=['PUT', 'GET', ], detail=False, permission_classes=[AdminPermission, ])
-    # def user_profile_admin(self, request, pk):
-    #     user = get_object_or_404(User, pk=pk)
-    #     if request.method == 'GET':
-    #         serializer = self.get_serializer(user, many=False)
-    #         return Response(serializer.data)
-    #     else:
-    #         serializer = self.get_serializer(user, data=request.data, partial=True)
-    #         serializer.is_valid(raise_exception=True)
-    #         self.perform_update(serializer)
-    #         return Response(serializer.data)
-
-
-
     def get_serializer_class(self):
         if not isinstance(self.serializer_classes, dict):
             raise ImproperlyConfigured("serializer_classes should be a dict mapping.")

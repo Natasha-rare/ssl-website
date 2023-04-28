@@ -99,8 +99,7 @@ class UserAllSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'first_name', 'last_name', 'father_name', 'telegram',
                   'email', 'hse_pass', 'is_accepted', 'is_verified_email', 'role')
-        read_only_fields = ('first_name', 'last_name', 'father_name', 'telegram',
-                  'email')
+
 
     def update(self, instance, validated_data):
         instance.role = validated_data.get('role', instance.role)

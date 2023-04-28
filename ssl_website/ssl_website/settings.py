@@ -36,6 +36,7 @@ DOMAIN_NAME = 'http://localhost:8000'
 INSTALLED_APPS = [
     'users',
     'landing',
+    'classes',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
