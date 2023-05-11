@@ -13,6 +13,12 @@ def get_closest_game():
     today = datetime.date.today()
     closest_sat = today + datetime.timedelta(6 -(today.weekday() + 1) % 7)
     return closest_sat
+
+class Attendance(models.TextChoices):
+    PLAYED = "Сыграл"
+    SKIP = "Не пришел"
+    LATE = "Опоздал"
+
 class GameRegister(models.Model):
     date = models.DateField(null=False, default=get_closest_game())
     player = models.ForeignKey(to=User, on_delete=models.CASCADE, to_field="id")
@@ -20,7 +26,12 @@ class GameRegister(models.Model):
     discuss_score = models.IntegerField("Счет переговоры", default=0, null=False)
     begin_time = models.TimeField(default=datetime.time(16, 30))
     finish_time = models.TimeField(default=datetime.time(21))
-
+    attendance = models.CharField(
+        max_length=30,
+        choices=Attendance.choices,
+        default=Attendance.PLAYED,
+        verbose_name="Посещаемость",
+    )
 
 class Game(models.Model):
     date = models.DateField(null=False, default=get_closest_game())

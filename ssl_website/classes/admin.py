@@ -3,8 +3,9 @@ from .models import Game, GameRegister, Referee
 # Register your models here.
 @admin.register(GameRegister)
 class GameRegisterAdmin(admin.ModelAdmin):
-    list_display = ('id', 'date', 'player')
-    list_display_links = ('id', 'date', 'player')
+    list_display = ('id', 'date', 'player', 'attendance')
+    list_display_links = ('id', 'date', 'player', 'attendance')
+    list_filter = ('date',  'attendance')
 
 @admin.register(Game)
 class GameAdmin(admin.ModelAdmin):
