@@ -196,6 +196,7 @@ class ProfileView(viewsets.ModelViewSet):
         return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
+    # need to change method, cause admins can't change users and can't have a profile
     def update(self, request, pk=None, *args, **kwargs):
         if request.user.role == UserRole.ADMIN:
             user = get_object_or_404(User, pk=pk)
