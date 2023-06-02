@@ -196,7 +196,7 @@ class ProfileView(viewsets.ModelViewSet):
         return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
-    def update(self, request, pk=None, *args, **kwargs):
+    def update(self, request, pk=None, *args, **kwargs): #need to change
         if request.user.role == UserRole.ADMIN:
             user = get_object_or_404(User, pk=pk)
             serializer = UserAllSerializer(user, data=request.data, partial=True, context={'request': request})
