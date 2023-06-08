@@ -18,15 +18,20 @@ class UserRole(models.TextChoices):
     ARBITRATOR = "arbitrator"  # просто зарегистрированный пользователь
     ADMIN = "admin"  # просто зарегистрированный пользователь
 
+class UserStatus(models.TextChoices):
+    BEGGINER = "Beginner"  # просто зарегистрированный пользователь
+    INTERMEDIATE = "Intermediate"  # просто зарегистрированный пользователь
+    UPPER_INTERMEDIATE = "Upper-intermediate"  # просто зарегистрированный пользователь
+    ADVANCED = "Advanced"  # просто зарегистрированный пользователь
 
 class User(AbstractUser):
     """Модель для пользователя"""
     username = None
-    last_name = models.CharField(_("last name"),  max_length=150, blank=False)
-    first_name = models.CharField(_("first name"), max_length=150, blank=False)
+    last_name = models.CharField(_("Last name"),  max_length=150, blank=False)
+    first_name = models.CharField(_("First name"), max_length=150, blank=False)
     father_name = models.CharField("Отчество", max_length=150, blank=True)
     image = models.ImageField(upload_to='users_images', null=True, blank=True)
-    email = models.EmailField(_("email address"), unique=True, blank=False)
+    email = models.EmailField(_("Email address"), unique=True, blank=False)
     telegram = models.CharField("Ник в Телеграме", max_length=100, validators=[MinLengthValidator(5)], blank=False)
     role = models.CharField(
         max_length=30,
@@ -37,9 +42,15 @@ class User(AbstractUser):
     tg_bot_id = models.URLField(_("id for telegram bot"), blank=True, max_length=60, null=True, default=None)
     hse_pass = models.BooleanField("Есть пропуск в Вышку", default=False, blank=False)
     is_accepted = models.BooleanField("Заявка принята", default=None, blank=False, null=True)
-    is_verified_email = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
-
+    is_verified_email = models.BooleanField("Почта подтверждена", default=False)
+    created_at = models.DateTimeField("Время создания аккаунта", auto_now_add=True)
+    rating = models.IntegerField("Рейтинг", default=0, null=False) # надо изменять в процессе игр
+    game_status = models.CharField(
+        max_length=100,
+        choices=UserStatus.choices,
+        default=UserStatus.BEGGINER,
+        verbose_name="Статус"
+    )
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
 

@@ -5,15 +5,18 @@ from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinLengthValidator
 
 User = get_user_model()
-# Create your models here.
-GAME_TYPES = (
-    ("CONFLICT", _("Conflict")),
-    ("DISCUSSION", _("Discussion"))
-)
-def get_closest_game():
-    today = datetime.date.today()
-    closest_sat = today + datetime.timedelta(6 -(today.weekday() + 1) % 7)
-    return closest_sat
+# Тип игр
+class GameTypes(models.TextChoices):
+    CONFLICT = "Конфликт"
+    DISCUSSION = "Переговоры"
+
+# Метки для игры, описывающие тип ситуации
+class GameLabels(models.TextChoices):
+    FAMILY = "Семья"
+    JOB = 'Работа'
+    SCHOOL = 'Обучение'
+    BUSINESS = 'Бизнес'
+    DEFAULT = ''
 
 # посещаемость игрока – отметка пришел/опоздал/пропустил игру
 class Attendance(models.TextChoices):
@@ -21,6 +24,10 @@ class Attendance(models.TextChoices):
     SKIP = "Не пришел"
     LATE = "Опоздал"
 
+def get_closest_game():
+    today = datetime.date.today()
+    closest_sat = today + datetime.timedelta(6 -(today.weekday() + 1) % 7)
+    return closest_sat
 
 '''
 Модель для регистрации игрока на игру
@@ -58,8 +65,8 @@ class Game(models.Model):
     table_number = models.IntegerField("Стол", default=0, null=False)
     game_type = models.CharField(
         max_length=15,
-        choices=GAME_TYPES,
-        default="CONFLICT",
+        choices=GameTypes.choices,
+        default=GameTypes.CONFLICT,
         verbose_name="Тип игры",
     )
 
@@ -75,8 +82,8 @@ class Referee(models.Model):
     table_number = models.IntegerField("Стол", default=0, null=False)
     game_type = models.CharField(
         max_length=15,
-        choices=GAME_TYPES,
-        default="CONFLICT",
+        choices=GameTypes.choices,
+        default=GameTypes.CONFLICT,
         verbose_name="Тип игры",
     )
 
@@ -88,9 +95,16 @@ class Referee(models.Model):
 class Cases(models.Model):
     case_type = models.CharField(
         max_length=15,
-        choices=GAME_TYPES,
-        default="CONFLICT",
+        choices=GameTypes.choices,
+        default=GameTypes.CONFLICT,
         verbose_name="Тип игры",
     )
     name = models.CharField("Название кейса", max_length=250, null=False)
     text = models.TextField("Текст кейса", null=False, validators=[MinLengthValidator(10)])
+    number = models.IntegerField("Номер кейса", null=False)
+    case_label = models.CharField(
+        max_length=20,
+        choices=GameLabels.choices,
+        default=GameLabels.DEFAULT,
+        verbose_name="Тип игры",
+    )

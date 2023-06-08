@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Game, GameRegister, Referee
+from .models import Game, GameRegister, Referee, Cases
 # Register your models here.
 @admin.register(GameRegister)
 class GameRegisterAdmin(admin.ModelAdmin):
@@ -21,3 +21,4 @@ class GameAdmin(admin.ModelAdmin):
 
 # admin.site.register(Game)
 admin.site.register(Referee)
+admin.site.register(Cases)

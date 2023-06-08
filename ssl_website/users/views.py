@@ -162,7 +162,7 @@ class ProfileView(viewsets.ModelViewSet):
     serializer_class = EmptySerializer
     serializer_classes = {
         'retrieve': UserSerialiser,
-        # 'update': UserSerialiser,
+        'update': UserSerialiser,
         # 'users_all': UserAllSerializer
         'list': UserAllSerializer
     }
@@ -170,6 +170,7 @@ class ProfileView(viewsets.ModelViewSet):
 
 
     def list(self, request):
+        print(request.user.role)
         if request.user.role != UserRole.ADMIN:
             url = f"{settings.DOMAIN_NAME}{reverse_lazy('users:profile-list')}{request.user.pk}/"
             print(url)
@@ -179,6 +180,7 @@ class ProfileView(viewsets.ModelViewSet):
                         status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
+        print(request.user.role)
         if pk: pk = int(pk)
         if request.user.role != UserRole.ADMIN and request.user.pk != pk:
             return Response({"Error": "У вас нет доступа для просмотра данной страницы"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -198,19 +200,19 @@ class ProfileView(viewsets.ModelViewSet):
 
     # need to change method, cause admins can't change users and can't have a profile
     def update(self, request, pk=None, *args, **kwargs):
-        if request.user.role == UserRole.ADMIN:
-            user = get_object_or_404(User, pk=pk)
-            serializer = UserAllSerializer(user, data=request.data, partial=True, context={'request': request})
-            serializer.is_valid(raise_exception=True)
-            self.perform_update(serializer)
-            return Response(serializer.data)
-        else:
-            user = get_object_or_404(User, email=request.user.email)
-            serializer = UserSerialiser(user, data=request.data, partial=True, context={'request': request})
-            serializer.is_valid(raise_exception=True)
-            print(serializer)
-            self.perform_update(serializer)
-            return Response(serializer.data)
+        # if request.user.role == UserRole.ADMIN:
+        #     user = get_object_or_404(User, pk=pk)
+        #     serializer = UserAllSerializer(user, data=request.data, partial=True, context={'request': request})
+        #     serializer.is_valid(raise_exception=True)
+        #     self.perform_update(serializer)
+        #     return Response(serializer.data)
+        # else:
+        user = get_object_or_404(User, email=request.user.email)
+        serializer = UserSerialiser(user, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        print(serializer)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def get_serializer_class(self):
         if not isinstance(self.serializer_classes, dict):

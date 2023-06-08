@@ -5,17 +5,17 @@ from .models import User, EmailVerification
 
 @admin.register(User)
 class UserAdmin(admin.ModelAdmin):
-    list_display = ('id', 'first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass', 'is_verified_email')
+    list_display = ('id', 'first_name', 'last_name', 'email', 'telegram', 'role', 'is_accepted', 'hse_pass', 'is_verified_email', 'game_status', 'rating')
     fieldsets = (
         ('Личная информация', {
             'fields': (('first_name', 'last_name'), 'father_name', 'email', 'telegram', 'image', 'hse_pass','tg_bot_id', 'is_verified_email')
         }),
         ('Роль в клубе', {
-            'fields': ('role', 'is_accepted')
+            'fields': ('role', 'is_accepted', 'game_status', 'rating')
         })
     )
     search_fields = ['role', 'telegram', 'email', 'hse_pass', 'is_accepted']
-    list_filter = ['role', 'hse_pass', 'is_accepted', 'telegram', 'email']
+    list_filter = ['role', 'hse_pass', 'is_accepted', 'telegram', 'email', 'game_status', 'rating']
     list_display_links = ('first_name', 'last_name', 'email', 'role', 'is_accepted', 'hse_pass')
     list_per_page = 25
 

@@ -41,8 +41,8 @@ class UserSerialiser(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ('first_name', 'last_name', 'father_name', 'telegram',
-                  'email', 'image', 'hse_pass')
-
+                  'email', 'image', 'hse_pass', 'rating', 'game_status')
+        read_only_fields = ('rating', 'game_status')
         extra_kwargs = {
             'father_name': {'required': False, 'validators': [RegexValidator(r'^[a-zA-Zа-яА-Я\s]*$',
                                                                              message=_("Отчество неккоректно. Допустимые символы для ввода: пробел, латинские и киррилические буквы"))]},
