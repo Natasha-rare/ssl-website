@@ -8,7 +8,6 @@ import uuid
 from datetime import timedelta
 from django.utils.timezone import now
 from rest_framework.reverse import reverse_lazy
-
 from .models import EmailVerification
 from django.conf import settings
 
@@ -184,7 +183,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         }
 
     def validate(self, attrs):
-        user = User.objects.filter(telegram=f"https://t.me/{attrs['telegram']}")
+        user = User.objects.filter(telegram=f"https://t.me/{attrs['telegram']}").last()
         if user and user.is_verified_email:
             raise serializers.ValidationError({"telegram": "Пользователь с таким телеграмом уже существует."})
         user = User.objects.filter(email=attrs['email'])
@@ -207,7 +206,7 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
         attrs['first_name'] = attrs['first_name'].capitalize()
         attrs['last_name'] = attrs['last_name'].capitalize()
-        attrs['father_name'] = attrs['father_name'].capitalize()
+        attrs['father_name'] = attrs.get('father_name', '').capitalize()
 
 
         return attrs
@@ -236,26 +235,25 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 
 def sendVerification(email, *args, **kwargs):
-    user = User.objects.filter(email=email)
-    if user.exists():
-        print('sdfsfsf')
-        user = user[0]
-        expiration = now() + timedelta(hours=48)
-        record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
-        record.send_verification_email()
-    elif 'email' in kwargs['kwargs']:
-        print(kwargs)
-        if User.objects.filter(email=kwargs['kwargs']['email']).exists():
-            print('aaaaaaaadadadadaddada')
+    # user = User.objects.get_object_or_504(email=email)
+    try:
+        user = get_object_or_404(User, email=email)
+        print(email, kwargs)
+        print('aaaaaaaadadadadaddada')
+        message = None
+        subject = None
+        if kwargs:
             user = User.objects.filter(email=kwargs['kwargs']['email']).first()
             user.is_verified_email = False
             user.email = email
             user.save()
-            print(user)
-            expiration = now() + timedelta(hours=48)
-            record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
-            record.send_verification_email()
-    else:
+            subject = "Обновление почты"
+            message = "Перейдите по ссылке для обновления почты: "
+        print(user)
+        expiration = now() + timedelta(hours=48)
+        record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
+        record.send_verification_email(subject=subject, message=message)
+    except:
         raise AuthenticationFailed('Пользователя с такой почтой не существует')
 
 

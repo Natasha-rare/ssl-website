@@ -96,7 +96,7 @@ class UserEncoder(JSONEncoder):
     def default(self, o):
         return o.__dict__
 
-
+# вьюшка для установления нового пароля / подтверждение обновления пароля
 class SetNewPasswordAPIView(generics.GenericAPIView):
     serializer_class = SetNewPasswordSerializer
 
@@ -115,7 +115,8 @@ class EmailVerificationView(generics.GenericAPIView):
     serializer_class = EmailVerificationSerializer
 
     def get(self, request, **kwargs):
-        sendVerification(kwargs['email'])
+        # print(request, kwargs)
+        # sendVerification(kwargs['email'])
         return Response({"Success": "Код подтверждения был выслан на вашу почту"}, status=status.HTTP_200_OK)
 
     def post(self, request, **kwargs):
@@ -123,9 +124,9 @@ class EmailVerificationView(generics.GenericAPIView):
         user = get_object_or_404(User, email=kwargs['email'])
         email_verifications = EmailVerification.objects.filter(user=user)
         serializer = UserRegistrationSerializer(user)
-        # print(email_verifications.exists())
-        # print(not email_verifications.last().is_expired())
-        # print(email_verifications.last().code, code, str(email_verifications.last().code) == str(code))
+        print(email_verifications.exists())
+        print(not email_verifications.last().is_expired())
+        print(email_verifications.last().code, code, str(email_verifications.last().code) == str(code))
         if email_verifications.exists() and (not email_verifications.last().is_expired()) \
                 and (str(email_verifications.last().code) == str(code)):
             print('aaaaaaaaaapppp')
@@ -134,16 +135,16 @@ class EmailVerificationView(generics.GenericAPIView):
             if user.is_accepted:
                 return Response({"Success": "Ваша почта успешно подтверждена"})
             # HttpResponseRedirect
-            return Response({"Success": f"Ваша заявка на участие в клубе успешно принята. Ожидайте ответ в течении трёх дней. Результат рассмотрения заявки придет на {kwargs['email']}."}, status=status.HTTP_200_OK)
+            return Response({"Success": f"Ваша заявка на участие в клубе принята. Ожидайте ответ в течении трёх дней. Результат рассмотрения заявки придет на {kwargs['email']}."}, status=status.HTTP_200_OK)
         elif email_verifications.first().is_expired():
             return Response({"Error": "Действие кода подтверждения истекло. Для получения нового кода перейдите по ссылке ..."}, status=status.HTTP_403_FORBIDDEN)
-        elif not user.is_accepted:
+        elif not user.is_accepted and user.is_verified_email:
             print('here')
             return Response({"Forbidden": "Вам отказано в доступе к клубу. Если вы хотите зарегистрироваться, напишите организатору ..."},
                                 status=status.HTTP_403_FORBIDDEN)
         return Response(serializer.data, status=status.HTTP_406_NOT_ACCEPTABLE)
 
-
+# вьюшка для изменения пароля из профиля
 class PasswordChangeView(generics.UpdateAPIView):
     queryset = User.objects.all()
     serializer_class = PasswordChangeSerializer

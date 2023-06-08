@@ -9,7 +9,7 @@ app_name = 'users'
 router = DefaultRouter()
 router.register('auth', UserAuthViewSet, basename="auth")
 router.register('profile', ProfileView, basename="profile")
-print(router.urls)
+# print(router.urls)
 urlpatterns = [
     path(r'verify_email/', EmailVerificationView.as_view(), name="resend-email"),
     path(r'verify_email/<str:email>/', EmailVerificationView.as_view(), name='email-verification'),

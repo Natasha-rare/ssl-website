@@ -77,16 +77,20 @@ class EmailVerification(models.Model):
     def __str__(self):
         return f'EmailVerification object for {self.user.email}'
 
-    def send_verification_email(self):
+    def send_verification_email(self, subject=None, message=None):
         print('email is sent')
         link = reverse('users:email-verification', kwargs={'email': self.user.email})
         print(link)
         verification_link = f'{settings.DOMAIN_NAME}{link}'
-        subject = f'Подверждение учетной записи для пользователя {self.user.first_name} {self.user.last_name}'
-        message = f'Здравствуйте, {self.user.first_name} {self.user.last_name}, \n' \
+        if not subject:
+            subject = f'Подверждение учетной записи для пользователя {self.user.first_name} {self.user.last_name}'
+        if not message:
+            message = f'Здравствуйте, {self.user.first_name} {self.user.last_name}, \n' \
                   f'Добро пожаловать в Soft Skills Lab! \n' \
                   f'Для завершения регистрации необходимо перейти по ссылке: {verification_link}' \
-                  f'и ввести код подтверждения: {self.code}.\n'
+                  f' и ввести код подтверждения: {self.code}.\n'
+        else:
+            message += f'{verification_link} и ввести код подтверждения: {self.code}.'
 
         send_mail(
             subject=subject,
