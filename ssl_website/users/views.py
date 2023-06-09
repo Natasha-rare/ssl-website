@@ -171,7 +171,7 @@ class ProfileView(viewsets.ModelViewSet):
 
 
     def list(self, request):
-        print(request.user.role)
+        print(request.user.role, request.user.pk, 'ahahaha', request.user.email)
         if request.user.role != UserRole.ADMIN:
             url = f"{settings.DOMAIN_NAME}{reverse_lazy('users:profile-list')}{request.user.pk}/"
             print(url)
@@ -181,7 +181,7 @@ class ProfileView(viewsets.ModelViewSet):
                         status=status.HTTP_200_OK)
 
     def retrieve(self, request, pk=None):
-        print(request.user.role)
+        print(request.user.role, request.user.pk, pk, request.user.email)
         if pk: pk = int(pk)
         if request.user.role != UserRole.ADMIN and request.user.pk != pk:
             return Response({"Error": "У вас нет доступа для просмотра данной страницы"}, status=status.HTTP_405_METHOD_NOT_ALLOWED)
@@ -195,7 +195,7 @@ class ProfileView(viewsets.ModelViewSet):
         else:
             serializer = UserSerialiser(instance)
         serializer.data['telegram'] = serializer.data['telegram'].split('/')[-1]
-        print(serializer.data['telegram'].split('/')[-1])
+        print(serializer.data)
         return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
@@ -211,7 +211,7 @@ class ProfileView(viewsets.ModelViewSet):
         user = get_object_or_404(User, email=request.user.email)
         serializer = UserSerialiser(user, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
-        print(serializer)
+        # print(serializer)
         self.perform_update(serializer)
         return Response(serializer.data)
 

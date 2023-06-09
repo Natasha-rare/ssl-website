@@ -65,13 +65,14 @@ class UserSerialiser(serializers.ModelSerializer):
 
     def validate_email(self, value):
         user = self.context['request'].user
-        print(user)
+        print(user, 'AHAHAHHA')
         if User.objects.exclude(pk=user.pk).filter(email=value).exists():
             print(User.objects.exclude(pk=user.pk).filter(email=value).exists())
             raise serializers.ValidationError({"email": "Пользователь с такой почтой уже существует"})
         return value
 
     def update(self, instance, validated_data):
+        print('i am going to upd this sh', validated_data)
         instance.first_name = validated_data.get('first_name', instance.first_name).capitalize()
         instance.last_name = validated_data.get('last_name', instance.last_name).capitalize()
         instance.father_name = validated_data.get('father_name', instance.father_name).capitalize()
@@ -79,6 +80,7 @@ class UserSerialiser(serializers.ModelSerializer):
             instance.telegram = f"https://t.me/{validated_data.get('telegram')}"
         instance.image = validated_data.get('image', instance.image)
         if instance.email != validated_data.get('email') and 'email' in validated_data:
+            print('imhereagain')
             sendVerification(validated_data.get('email').lower(), kwargs={"email": instance.email})
             # instance.is_verified_email = False
             instance.email = validated_data.get('email').lower()
@@ -236,12 +238,15 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
 def sendVerification(email, *args, **kwargs):
     # user = User.objects.get_object_or_504(email=email)
-    try:
+    try: # отправка письма при регистрации нового пользователя
         user = get_object_or_404(User, email=email)
         print(email, kwargs)
-        print('aaaaaaaadadadadaddada')
-        message = None
-        subject = None
+        # print('aaaaaaaadadadadaddada')
+        print(user)
+        expiration = now() + timedelta(hours=48)
+        record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
+        record.send_verification_email()
+    except: # обновление почты через лк
         if kwargs:
             user = User.objects.filter(email=kwargs['kwargs']['email']).first()
             user.is_verified_email = False
@@ -249,11 +254,11 @@ def sendVerification(email, *args, **kwargs):
             user.save()
             subject = "Обновление почты"
             message = "Перейдите по ссылке для обновления почты: "
-        print(user)
-        expiration = now() + timedelta(hours=48)
-        record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
-        record.send_verification_email(subject=subject, message=message)
-    except:
+            print(user)
+            expiration = now() + timedelta(hours=48)
+            record = EmailVerification.objects.create(code=uuid.uuid4(), user=user, expiration=expiration)
+            record.send_verification_email(subject=subject, message=message)
+            return user
         raise AuthenticationFailed('Пользователя с такой почтой не существует')
 
 
