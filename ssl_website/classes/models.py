@@ -1,8 +1,9 @@
-from django.db import models
-from django.contrib.auth import get_user_model
 import datetime
-from django.utils.translation import gettext_lazy as _
+
+from django.contrib.auth import get_user_model
 from django.core.validators import MinLengthValidator
+from django.db import models
+from multiselectfield import MultiSelectField
 
 User = get_user_model()
 # Тип игр
@@ -12,11 +13,10 @@ class GameTypes(models.TextChoices):
 
 # Метки для игры, описывающие тип ситуации
 class GameLabels(models.TextChoices):
-    FAMILY = "Семья"
-    JOB = 'Работа'
-    SCHOOL = 'Обучение'
+    FAMILY = "Бытовые"
+    JOB = 'Корпоративные'
     BUSINESS = 'Бизнес'
-    DEFAULT = ''
+    DEFAULT = 'Другое'
 
 # посещаемость игрока – отметка пришел/опоздал/пропустил игру
 class Attendance(models.TextChoices):
@@ -99,12 +99,12 @@ class Cases(models.Model):
         default=GameTypes.CONFLICT,
         verbose_name="Тип игры",
     )
-    name = models.CharField("Название кейса", max_length=250, null=False)
+    name = models.CharField("Название кейса", max_length=250, null=True)
     text = models.TextField("Текст кейса", null=False, validators=[MinLengthValidator(10)])
     number = models.IntegerField("Номер кейса", null=False)
-    case_label = models.CharField(
-        max_length=20,
+    case_label = MultiSelectField(
         choices=GameLabels.choices,
         default=GameLabels.DEFAULT,
         verbose_name="Тип игры",
+        max_length=100,
     )
