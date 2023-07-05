@@ -99,7 +99,7 @@ class Cases(models.Model):
         default=GameTypes.CONFLICT,
         verbose_name="Тип игры",
     )
-    name = models.CharField("Название кейса", max_length=250, null=True)
+    name = models.CharField("Название кейса", max_length=250, blank=True, default='')
     text = models.TextField("Текст кейса", null=False, validators=[MinLengthValidator(10)])
     number = models.IntegerField("Номер кейса", null=False)
     case_label = MultiSelectField(

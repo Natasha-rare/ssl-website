@@ -19,6 +19,13 @@ class GameAdmin(admin.ModelAdmin):
             formfield.label_from_instance = lambda obj: f'{obj.player.email}'
         return formfield
 
+@admin.register(Cases)
+class CasesAdmin(admin.ModelAdmin):
+    list_display = ('text', 'number', 'case_type')
+    list_display_links = ('text', 'number', 'case_type')
+    search_fields = ('text', 'number', )
+    list_filter = ('case_type',)
+
 # admin.site.register(Game)
 admin.site.register(Referee)
-admin.site.register(Cases)
+# (Cases)
