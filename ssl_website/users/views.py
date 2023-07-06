@@ -7,6 +7,7 @@ from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status, generics, views
+from rest_framework.views import APIView
 
 from .permissions import ReadOnlyPermission, ArbitratorPermission, AdminPermission, StudentPermission
 from rest_framework.decorators import action, api_view, permission_classes
@@ -18,9 +19,8 @@ from django.urls import reverse, reverse_lazy
 from json import JSONEncoder
 from .models import EmailVerification
 from .serializers import UserRegistrationSerializer, \
-    SetNewPasswordSerializer, EmailVerificationSerializer, sendVerification, \
-    UserSerialiser, EmptySerializer, UserAllSerializer, PasswordChangeSerializer, \
-    UserLoginSerializer, UserPwdChangeSerializer
+    SetNewPasswordSerializer, EmailVerificationSerializer, UserSerialiser, EmptySerializer,\
+    UserAllSerializer, UserLoginSerializer, UserPwdChangeSerializer
 from django.core.mail import send_mail
 from .models import UserRole
 User = get_user_model()
@@ -97,18 +97,32 @@ class UserEncoder(JSONEncoder):
         return o.__dict__
 
 # вьюшка для установления нового пароля / подтверждение обновления пароля
-class SetNewPasswordAPIView(generics.GenericAPIView):
+class SetNewPasswordAPIView(generics.UpdateAPIView):
     serializer_class = SetNewPasswordSerializer
-
-    def patch(self, request, **kwargs):
+    def update(self, request, **kwargs):
         print(request.data)
+        email = kwargs.get('email', request.user.email)
         password = request.data.get("password")
         password2 = request.data.get("password2")
-        email = kwargs["email"]
-        serializer = self.serializer_class(data={"password": password, 'password2':password2,"email":email})
+        serializer = self.serializer_class(data={"password": password, 'password2': password2, "email": email})
         print(serializer)
         serializer.is_valid(raise_exception=True)
         return Response({'success': True, 'message': 'Пароль успешно обновлен'}, status=status.HTTP_200_OK)
+
+class PasswordChangeView(APIView):
+    permission_classes = [StudentPermission | ArbitratorPermission]
+
+    def post(self, request, *args, **kwargs):
+        # Check if the old password is provided in the request data
+        if 'old_password' not in request.data:
+            return Response({"error": "Old password is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Verify the old password
+        user = request.user
+        if not user.check_password(request.data['old_password']):
+            return Response({"error": "Invalid old password"}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({"message": "Old password is right"}, status=status.HTTP_200_OK)
 
 
 class EmailVerificationView(generics.GenericAPIView):
@@ -145,18 +159,6 @@ class EmailVerificationView(generics.GenericAPIView):
         return Response(serializer.data, status=status.HTTP_406_NOT_ACCEPTABLE)
 
 # вьюшка для изменения пароля из профиля
-class PasswordChangeView(generics.UpdateAPIView):
-    queryset = User.objects.all()
-    serializer_class = PasswordChangeSerializer
-    permission_classes = [StudentPermission| AdminPermission| ArbitratorPermission ]
-
-    def update(self, request, *args, **kwargs):
-        print(request.user.role)
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response({"Changed": "Пароль изменен успешно!!!"}, status=status.HTTP_200_OK)
-
 
 class ProfileView(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -167,8 +169,7 @@ class ProfileView(viewsets.ModelViewSet):
         # 'users_all': UserAllSerializer
         'list': UserAllSerializer
     }
-    permission_classes = [StudentPermission | AdminPermission | ArbitratorPermission]
-
+    permission_classes = [StudentPermission | ArbitratorPermission |AdminPermission]
 
     def list(self, request):
         print(request.user.role, request.user.pk, 'ahahaha', request.user.email)
@@ -201,13 +202,10 @@ class ProfileView(viewsets.ModelViewSet):
 
     # need to change method, cause admins can't change users and can't have a profile
     def update(self, request, pk=None, *args, **kwargs):
-        # if request.user.role == UserRole.ADMIN:
-        #     user = get_object_or_404(User, pk=pk)
-        #     serializer = UserAllSerializer(user, data=request.data, partial=True, context={'request': request})
-        #     serializer.is_valid(raise_exception=True)
-        #     self.perform_update(serializer)
-        #     return Response(serializer.data)
-        # else:
+        if pk: pk = int(pk)
+        if request.user.role != UserRole.ADMIN and request.user.pk != pk:
+            return Response({"Error": "У вас нет доступа для просмотра данной страницы"},
+                            status=status.HTTP_405_METHOD_NOT_ALLOWED)
         user = get_object_or_404(User, email=request.user.email)
         serializer = UserSerialiser(user, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)

@@ -62,7 +62,6 @@ class UserSerialiser(serializers.ModelSerializer):
                 raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
         return value
 
-
     def validate_email(self, value):
         user = self.context['request'].user
         print(user, 'AHAHAHHA')
@@ -85,11 +84,13 @@ class UserSerialiser(serializers.ModelSerializer):
             # instance.is_verified_email = False
             instance.email = validated_data.get('email').lower()
             # instance.save()
+        # print(bool(validated_data.get("hse_pass", instance.hse_pass)), validated_data.get("hse_pass"))
         instance.hse_pass = bool(validated_data.get("hse_pass", instance.hse_pass))
         instance.save()
         return instance
 
 
+# просмотр админом данных о пользователях и их изменение (не будет доступно в mvp)
 class UserAllSerializer(serializers.ModelSerializer):
     role = serializers.ChoiceField(
         choices=UserRole.choices,
@@ -129,7 +130,6 @@ class UserAllSerializer(serializers.ModelSerializer):
                 )
         instance.is_verified_email = validated_data.get('is_verified_email', instance.is_verified_email)
         instance.hse_pass = validated_data.get('hse_pass', instance.hse_pass)
-
         instance.save()
         return instance
 
@@ -203,7 +203,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             if attrs['image'].size > 10.0*1024*1024:
                 raise serializers.ValidationError({"image": "Размер загруженного изображения больше 10мб"})
         if not attrs['accept_conditions']:
-            # raise serializers.ValidationError({"conditions": "Для продолжения регистрации,необходимо принять условия пользовательского соглашения"})
             raise serializers.ValidationError({"conditions": "Для продолжения регистрации,необходимо принять условия пользовательского соглашения"})
 
         attrs['first_name'] = attrs['first_name'].capitalize()
@@ -271,7 +270,6 @@ class EmailVerificationSerializer(serializers.ModelSerializer):
 class SetNewPasswordSerializer(serializers.Serializer):
     password = serializers.CharField(required=True, validators=[validate_password])
     password2 = serializers.CharField(required=True, validators=[validate_password], write_only=True)
-
     email = serializers.EmailField(required=True)
 
     class Meta:
@@ -295,26 +293,3 @@ class SetNewPasswordSerializer(serializers.Serializer):
         return attrs
 
 
-class PasswordChangeSerializer(serializers.Serializer):
-    old_password = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    new_password1 = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-    new_password2 = serializers.CharField(write_only=True, required=True, validators=[validate_password])
-
-    def validate_old_password(self, value):
-        user = self.context['request'].user
-        if not user.check_password(value):
-            raise serializers.ValidationError('Старый пароль не верен')
-        return value
-
-    def validate(self, data):
-        if data['new_password1'] != data['new_password2']:
-            raise serializers.ValidationError({'new_password2': "Новые пароли не совпадают"})
-        validate_password(data['new_password1'], self.context['request'].user)
-        return data
-
-    def save(self, **kwargs):
-        password = self.validated_data['new_password1']
-        user = self.context['request'].user
-        user.set_password(password)
-        user.save()
-        return user

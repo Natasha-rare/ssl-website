@@ -14,9 +14,10 @@ urlpatterns = [
     path(r'verify_email/', EmailVerificationView.as_view(), name="resend-email"),
     path(r'verify_email/<str:email>/', EmailVerificationView.as_view(), name='email-verification'),
     path(r'users/', include(router.urls)),
-    path(r'change_password/', PasswordChangeView.as_view(), name="password-change"), #change
+    path(r'users/verify_old_password/', PasswordChangeView.as_view(), name="verify-old-password"),
+    path(r'users/change_password/', SetNewPasswordAPIView.as_view(), name="password-change"),
     path('password_reset_complete/<str:email>/<code>/', SetNewPasswordAPIView.as_view(),
-         name='password-reset-complete'), #change
+         name='password-reset-complete'),
     # path(r'profile/', ProfileView.as_view(), name="profile"),
     # path("signup/", SignUp.as_view(), name="signup"),
     # path("logout/", logout, name="logout"),
