@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'corsheaders',
     'django.contrib.sites',
-    'multiselectfield',
+    'multiselectfield'
 ]
 
 SITE_ID = 2

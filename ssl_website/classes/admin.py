@@ -1,6 +1,6 @@
 from django.contrib import admin
-from .models import Game, GameRegister, Referee, Cases
-# Register your models here.
+from .models import Game, GameRegister, Referee, Cases, GameLabels, GameLabel
+from .filters import CaseLabelFilter
 @admin.register(GameRegister)
 class GameRegisterAdmin(admin.ModelAdmin):
     list_display = ('id', 'date', 'player', 'attendance')
@@ -19,13 +19,25 @@ class GameAdmin(admin.ModelAdmin):
             formfield.label_from_instance = lambda obj: f'{obj.player.email}'
         return formfield
 
+
 @admin.register(Cases)
 class CasesAdmin(admin.ModelAdmin):
-    list_display = ('text', 'number', 'case_type')
-    list_display_links = ('text', 'number', 'case_type')
+    list_display = ('trim100', 'number', 'case_type',  'game_labels')
+    list_display_links = ('trim100', 'number', 'case_type', 'game_labels')
     search_fields = ('text', 'number', )
-    list_filter = ('case_type',)
+    list_filter = ('case_type',  CaseLabelFilter)
+    def trim100(self, obj):
+        return u"%s..." % (obj.text[:100],)
 
-# admin.site.register(Game)
+    def game_labels(self, obj):
+        return ', '.join([x.type for x in obj.label.all()])
+
+@admin.register(GameLabel)
+class GameLabelAdmin(admin.ModelAdmin):
+    list_display = ('id', 'type')
+    list_display_links = ('id', 'type')
+
+
+# admin.site.register(GameLabel)
 admin.site.register(Referee)
 # (Cases)

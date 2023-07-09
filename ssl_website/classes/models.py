@@ -3,7 +3,6 @@ import datetime
 from django.contrib.auth import get_user_model
 from django.core.validators import MinLengthValidator
 from django.db import models
-from multiselectfield import MultiSelectField
 
 User = get_user_model()
 # Тип игр
@@ -17,6 +16,9 @@ class GameLabels(models.TextChoices):
     JOB = 'Корпоративные'
     BUSINESS = 'Бизнес'
     DEFAULT = 'Другое'
+
+class GameLabel(models.Model):
+    type = models.CharField(max_length=100)
 
 # посещаемость игрока – отметка пришел/опоздал/пропустил игру
 class Attendance(models.TextChoices):
@@ -102,9 +104,4 @@ class Cases(models.Model):
     name = models.CharField("Название кейса", max_length=250, blank=True, default='')
     text = models.TextField("Текст кейса", null=False, validators=[MinLengthValidator(10)])
     number = models.IntegerField("Номер кейса", null=False)
-    case_label = MultiSelectField(
-        choices=GameLabels.choices,
-        default=GameLabels.DEFAULT,
-        verbose_name="Тип игры",
-        max_length=100,
-    )
+    label = models.ManyToManyField(GameLabel, verbose_name="Категория")
