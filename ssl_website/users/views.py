@@ -2,16 +2,12 @@ import uuid
 from django.contrib import auth
 from django.contrib.auth import get_user_model, password_validation, authenticate, login
 from django.conf import settings
-from django.contrib.sites.models import Site
-from django.contrib.sites.shortcuts import get_current_site
 from django.core.exceptions import ImproperlyConfigured
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, status, generics, views
 from rest_framework.views import APIView
-
 from .permissions import ReadOnlyPermission, ArbitratorPermission, AdminPermission, StudentPermission
 from rest_framework.decorators import action, api_view, permission_classes
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.http import HttpResponseRedirect
@@ -19,8 +15,8 @@ from django.urls import reverse, reverse_lazy
 from json import JSONEncoder
 from .models import EmailVerification
 from .serializers import UserRegistrationSerializer, \
-    SetNewPasswordSerializer, EmailVerificationSerializer, UserSerialiser, EmptySerializer,\
-    UserAllSerializer, UserLoginSerializer, UserPwdChangeSerializer
+    SetNewPasswordSerializer, EmailVerificationSerializer, UserSerializer, EmptySerializer, UserLoginSerializer, \
+    UserPwdChangeSerializer, UserAllSerializer
 from django.core.mail import send_mail
 from .models import UserRole
 User = get_user_model()
@@ -164,8 +160,8 @@ class ProfileView(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = EmptySerializer
     serializer_classes = {
-        'retrieve': UserSerialiser,
-        'update': UserSerialiser,
+        'retrieve': UserSerializer,
+        'update': UserSerializer,
         # 'users_all': UserAllSerializer
         'list': UserAllSerializer
     }
@@ -191,23 +187,23 @@ class ProfileView(viewsets.ModelViewSet):
         except:
             return Response({"Error": "Пользователь с таким id не найден"}, status=status.HTTP_404_NOT_FOUND)
         print(instance, 'retrieve')
-        if request.user.role == UserRole.ADMIN:
-            serializer = UserAllSerializer(instance)
-        else:
-            serializer = UserSerialiser(instance)
+        # if request.user.role == UserRole.ADMIN:
+        #     serializer = UserAllSerializer(instance)
+        # else:
+        serializer = UserSerializer(instance)
         serializer.data['telegram'] = serializer.data['telegram'].split('/')[-1]
         print(serializer.data)
         return Response(serializer.data,
                         status=status.HTTP_200_OK)
 
-    # need to change method, cause admins can't change users and can't have a profile
+
     def update(self, request, pk=None, *args, **kwargs):
         if pk: pk = int(pk)
         if request.user.role != UserRole.ADMIN and request.user.pk != pk:
             return Response({"Error": "У вас нет доступа для просмотра данной страницы"},
                             status=status.HTTP_405_METHOD_NOT_ALLOWED)
         user = get_object_or_404(User, email=request.user.email)
-        serializer = UserSerialiser(user, data=request.data, partial=True, context={'request': request})
+        serializer = UserSerializer(user, data=request.data, partial=True, context={'request': request})
         serializer.is_valid(raise_exception=True)
         # print(serializer)
         self.perform_update(serializer)
@@ -216,12 +212,6 @@ class ProfileView(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if not isinstance(self.serializer_classes, dict):
             raise ImproperlyConfigured("serializer_classes should be a dict mapping.")
-        if self.action == 'update':
-            if self.request.user.role == UserRole.ADMIN:
-                return UserAllSerializer
-            else:
-                return UserSerialiser
-
         if self.action in self.serializer_classes.keys():
             return self.serializer_classes[self.action]
         return super().get_serializer_class()

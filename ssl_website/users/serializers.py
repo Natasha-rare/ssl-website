@@ -2,21 +2,19 @@ from django.core.validators import RegexValidator
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from rest_framework import serializers
-from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 import uuid
 from datetime import timedelta
 from django.utils.timezone import now
 from rest_framework.reverse import reverse_lazy
-from .models import EmailVerification
+from .models import EmailVerification, UserRole
 from django.conf import settings
-
-User = get_user_model()
 from rest_framework.exceptions import AuthenticationFailed
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth import get_user_model, password_validation, authenticate, login
-from .models import UserRole
 from django.core.mail import send_mail
+
+User = get_user_model()
 class ChoicesField(serializers.Field):
     def __init__(self, choices, **kwargs):
         self._choices = choices
@@ -35,7 +33,7 @@ class UserPwdChangeSerializer(serializers.ModelSerializer):
         fields = ('email', )
 
 
-class UserSerialiser(serializers.ModelSerializer):
+class UserSerializer(serializers.ModelSerializer):
     email = serializers.EmailField()
     class Meta:
         model = User
@@ -96,12 +94,11 @@ class UserAllSerializer(serializers.ModelSerializer):
         choices=UserRole.choices,
         default=UserRole.USER,
     )
-    
+
     class Meta:
         model = User
         fields = ('id', 'first_name', 'last_name', 'father_name', 'telegram',
                   'email', 'hse_pass', 'is_accepted', 'is_verified_email', 'role')
-
 
     def update(self, instance, validated_data):
         instance.role = validated_data.get('role', instance.role)
@@ -208,8 +205,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         attrs['first_name'] = attrs['first_name'].capitalize()
         attrs['last_name'] = attrs['last_name'].capitalize()
         attrs['father_name'] = attrs.get('father_name', '').capitalize()
-
-
         return attrs
 
     def create(self, validated_data):

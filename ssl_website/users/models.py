@@ -30,7 +30,7 @@ class User(AbstractUser):
     last_name = models.CharField(_("Last name"),  max_length=150, blank=False)
     first_name = models.CharField(_("First name"), max_length=150, blank=False)
     father_name = models.CharField("Отчество", max_length=150, blank=True)
-    image = models.ImageField(upload_to='users_images', null=True, blank=True)
+    image = models.ImageField(upload_to='users_images', null=True, blank=True, default='users_images/default.png')
     email = models.EmailField(_("Email address"), unique=True, blank=False)
     telegram = models.CharField("Ник в Телеграме", max_length=100, validators=[MinLengthValidator(5)], blank=False)
     role = models.CharField(

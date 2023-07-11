@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Game, GameRegister, Referee, Cases, GameLabels, GameLabel
+from .models import Game, GameRegister, Referee, Cases, GameLabel
 from .filters import CaseLabelFilter
 @admin.register(GameRegister)
 class GameRegisterAdmin(admin.ModelAdmin):
